@@ -1,0 +1,12 @@
+syntax = "proto3";
+package baton.baton;
+
+import "gogoproto/gogo.proto";
+import "baton/baton/params.proto";
+
+option go_package = "baton/x/baton/types";
+
+// GenesisState defines the baton module's genesis state.
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+}
