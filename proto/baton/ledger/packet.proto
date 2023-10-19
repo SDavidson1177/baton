@@ -1,0 +1,13 @@
+syntax = "proto3";
+package baton.ledger;
+
+option go_package = "baton/x/ledger/types";
+
+message LedgerPacketData {
+    oneof packet {
+        NoData noData = 1;
+    }
+}
+
+message NoData {
+}

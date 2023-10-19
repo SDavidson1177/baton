@@ -1,0 +1,7 @@
+syntax = "proto3";
+package baton.ledger;
+
+option go_package = "baton/x/ledger/types";
+
+// Msg defines the Msg service.
+service Msg {}

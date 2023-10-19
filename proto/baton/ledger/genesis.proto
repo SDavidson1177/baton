@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package baton.ledger;
+
+import "gogoproto/gogo.proto";
+import "baton/ledger/params.proto";
+
+option go_package = "baton/x/ledger/types";
+
+// GenesisState defines the ledger module's genesis state.
+message GenesisState {
+  Params params  = 1 [(gogoproto.nullable) = false];
+  string port_id = 2;
+}
+
