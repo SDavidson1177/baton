@@ -4,15 +4,26 @@ services:
   chain0:
     container_name: chain0
     build: .
-    ports:
-      - "26656-26657:26656-26657"
-    volumes:
-      - ./build/chain0/evmosd:/evmos:Z
-    command:
-      - ignite chain server -v
+    # ports:
+    #   - "26656-26657:26656-26657"
+    # volumes:
+    #   - ./build/chain0/evmosd:/evmos:Z
+    command: ignite chain serve -v
     networks:
       baton-chain-net:
         ipv4_address: 192.167.10.2
+
+  chain1:
+    container_name: chain1
+    build: .
+    # ports:
+    #   - "26656-26657:26656-26657"
+    # volumes:
+    #   - ./build/chain1/evmosd:/evmos:Z
+    command: ignite chain serve -v
+    networks:
+      baton-chain-net:
+        ipv4_address: 192.167.10.3
 
 networks:
   baton-chain-net:
