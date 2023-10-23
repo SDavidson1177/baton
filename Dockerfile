@@ -8,6 +8,9 @@ RUN mkdir ./baton
 COPY . ./baton
 WORKDIR ./baton
 
+# Build the blockchain
+# RUN ignite chain build
+
 EXPOSE 26656 26657 1317 9090 8545 8546
 
 CMD ["tail", "-f", "/dev/null"]

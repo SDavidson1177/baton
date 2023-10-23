@@ -1,0 +1,16 @@
+{
+    "src": {
+      "chain-id": "baton-0",
+      "port-id": "transfer",
+      "order": "unordered",
+      "version": "ics20-1"
+    },
+    "dst": {
+      "chain-id": "baton-1",
+      "port-id": "transfer",
+      "order": "unordered",
+      "version": "ics20-1"
+    },
+    "strategy": { "type": "naive" }
+  }
+  

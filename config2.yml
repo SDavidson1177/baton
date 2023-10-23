@@ -11,7 +11,7 @@ accounts:
   - 10000token
   - 100000000stake
 genesis:
-  chain_id: "baton-0"
+  chain_id: "baton-1"
 client:
   openapi:
     path: docs/static/openapi.yml

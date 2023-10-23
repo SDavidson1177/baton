@@ -1,0 +1,10 @@
+FROM golang:1.19.1
+
+RUN mkdir ./relayer/
+COPY ./external/relayer/ ./relayer/
+WORKDIR ./relayer/
+RUN make install
+
+EXPOSE 26656 26657 1317 9090 8545 8546 13490 443 80 8080
+
+CMD ["tail", "-f", "/dev/null"]
