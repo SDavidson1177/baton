@@ -29,13 +29,27 @@ services:
       baton-chain-net:
         ipv4_address: 192.167.10.3
 
+  chain2:
+    container_name: chain2
+    storage_opt:
+      size: '5G'
+    build: .
+    # ports:
+    #   - "26656-26657:26656-26657"
+    # volumes:
+    #   - ./build/chain1/evmosd:/evmos:Z
+    command: ignite chain serve --config config3.yml -v
+    networks:
+      baton-chain-net:
+        ipv4_address: 192.167.10.4
+
   relayer:
     container_name: relayer
     build:
       dockerfile: ./DockerfileRelayer
     networks:
       baton-chain-net:
-        ipv4_address: 192.167.10.4
+        ipv4_address: 192.167.10.5
 
 networks:
   baton-chain-net:

@@ -1,9 +1,15 @@
-FROM golang:1.19.1
+FROM golang:1.21-bullseye
 
 RUN mkdir ./relayer/
 COPY ./external/relayer/ ./relayer/
 WORKDIR ./relayer/
 RUN make install
+
+WORKDIR ..
+COPY chain0-config.json .
+COPY chain1-config.json .
+COPY chain2-config.json .
+COPY keys/ .
 
 EXPOSE 26656 26657 1317 9090 8545 8546 13490 443 80 8080
 
