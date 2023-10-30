@@ -1,0 +1,25 @@
+version: 1
+build:
+  main: cmd/batond
+accounts:
+- name: alice
+  coins:
+  - 20000token
+  - 200000000stake
+- name: bob
+  coins:
+  - 10000token
+  - 100000000stake
+genesis:
+  chain_id: "baton-2"
+client:
+  openapi:
+    path: docs/static/openapi.yml
+faucet:
+  name: alice
+  coins:
+  - 5000token
+  - 100000stake
+validators:
+- name: alice
+  bonded: 100000000stake
