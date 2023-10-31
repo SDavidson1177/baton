@@ -460,8 +460,10 @@ func TestRelayerMultihop(t *testing.T) {
 	})
 
 	// Single hop wasm1 -> osmosis
+	// Generate Path: Calls => rly paths new src dst path_name path_hops...
 	err = r.GeneratePath(ctx, eRep, wasm1.Config().ChainID, osmosis.Config().ChainID, pathWasm1Osmosis)
 	require.NoError(t, err)
+	// Create Clients: Calls => rly tx clients path_name --client-tp tp
 	err = r.CreateClients(ctx, eRep, pathWasm1Osmosis, ibc.DefaultClientOpts())
 	require.NoError(t, err)
 	// Wait a few blocks for the clients to be created.
@@ -482,6 +484,7 @@ func TestRelayerMultihop(t *testing.T) {
 			chain.Config().ChainID, connections)
 	}
 
+	// Create Connections: Calls => rly tx connection path_name
 	err = r.CreateConnections(ctx, eRep, pathWasm1Osmosis)
 	require.NoError(t, err)
 	// Offset by 1 in wasmd for 09-localhost
@@ -509,6 +512,7 @@ func TestRelayerMultihop(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create multihop channel
+	// Create Channel: Calls => rly tx channel --src-port transfer --dst-port transfer --order unordered --version ics20-1
 	err = r.CreateChannel(ctx, eRep, pathWasm1Wasm2, ibc.DefaultChannelOpts())
 	require.NoError(t, err)
 
@@ -537,6 +541,7 @@ func TestRelayerMultihop(t *testing.T) {
 	require.Len(t, osmosisChans, 0)
 
 	// Start the relayers
+	// Calls: rly start
 	err = r.StartRelayer(ctx, eRep, pathWasm1Osmosis, pathOsmosisWasm2, pathWasm1Wasm2)
 	require.NoError(t, err)
 	t.Cleanup(
