@@ -1,8 +1,10 @@
 FROM golang:1.21-bullseye
 
-RUN mkdir ./relayer/
-COPY ./external/relayer/ ./relayer/
-WORKDIR ./relayer/
+RUN mkdir -p ./baton/x/ibcx-go/
+RUN mkdir -p ./baton/external/relayer/
+COPY ./x/ibcx-go/ ./baton/x/ibcx-go/
+COPY ./external/relayer/ ./baton/external/relayer/
+WORKDIR ./baton/external/relayer/
 RUN make install
 
 WORKDIR ..
