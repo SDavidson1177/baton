@@ -37,6 +37,32 @@ func (e *endpoint) ClientID() string {
 	return e.clientID
 }
 
+func (e *endpoint) GetClientState() exported.ClientState {
+	ctx := context.Background()
+	height, err := e.provider.QueryLatestHeight(ctx)
+	if err != nil {
+		panic(err)
+	}
+	clientState, err := e.provider.QueryClientState(ctx, int64(height), e.clientID)
+	if err != nil {
+		panic(err)
+	}
+	return clientState
+}
+
+// func (e *endpoint) GetClientState() exported.ClientState {
+// 	ctx := context.Background()
+// 	height, err := e.provider.QueryLatestHeight(ctx)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	clientState, err := e.provider.QueryClientState(ctx, int64(height), e.clientID)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	return clientState
+// }
+
 func (e *endpoint) GetConsensusHeight() exported.Height {
 	ctx := context.Background()
 	height, err := e.provider.QueryLatestHeight(ctx)
@@ -48,6 +74,10 @@ func (e *endpoint) GetConsensusHeight() exported.Height {
 		panic(err)
 	}
 	return clientState.GetLatestHeight()
+}
+
+func (e *endpoint) GetLatestHeight() exported.Height {
+	return e.GetClientState().GetLatestHeight()
 }
 
 // TODO: this is redundant, should be removed

@@ -72,6 +72,11 @@ message ConsensusState {
     (gogoproto.casttype) = "github.com/cometbft/cometbft/libs/bytes.HexBytes",
     (gogoproto.moretags) = "yaml:\"next_validators_hash\""
   ];
+
+  bytes last_commit_hash = 4 [
+    (gogoproto.casttype) = "github.com/cometbft/cometbft/libs/bytes.HexBytes",
+    (gogoproto.moretags) = "yaml:\"last_commit_hash\""
+  ];
 }
 
 // Misbehaviour is a wrapper over two conflicting Headers
