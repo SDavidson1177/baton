@@ -19,6 +19,7 @@ import (
 	"github.com/cometbft/cometbft/light"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
+	"github.com/cometbft/cometbft/types"
 	tmtypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -1257,6 +1258,19 @@ func (cc *CosmosProvider) QueryIBCHeader(ctx context.Context, h int64) (provider
 		SignedHeader: lightBlock.SignedHeader,
 		ValidatorSet: lightBlock.ValidatorSet,
 	}, nil
+}
+
+// QueryIBCBlock returns the IBC compatible block (TendermintIBCHeader) at a specific height.
+func (cc *CosmosProvider) QueryIBCBlock(ctx context.Context, h int64) (types.Block, error) {
+	if h == 0 {
+		return types.Block{}, fmt.Errorf("height cannot be 0")
+	}
+
+	fullBlock, err := cc.RPCClient.Block(ctx, &h)
+	if err != nil {
+		return types.Block{}, err
+	}
+	return *fullBlock.Block, nil
 }
 
 // InjectTrustedFields injects the necessary trusted fields for a header to update a light

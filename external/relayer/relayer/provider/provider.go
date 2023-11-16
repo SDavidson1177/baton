@@ -447,6 +447,7 @@ type QueryProvider interface {
 
 	// QueryIBCHeader returns the IBC compatible block header at a specific height.
 	QueryIBCHeader(ctx context.Context, h int64) (IBCHeader, error)
+	QueryIBCBlock(ctx context.Context, h int64) (types.Block, error)
 
 	// query packet info for sequence
 	QuerySendPacket(ctx context.Context, srcChanID, srcPortID string, sequence uint64) (PacketInfo, error)
