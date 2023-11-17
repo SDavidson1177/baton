@@ -224,6 +224,16 @@ func (k Keeper) RecvPacket(
 			channel.ConnectionHops, kvGenerator); err != nil {
 			return err
 		}
+
+		// TODO: check policy against block data
+		var mProof types.MsgMultihopProofs
+		if err := k.cdc.Unmarshal(proof, &mProof); err != nil {
+			return err
+		}
+
+		policy := channel.GetVersion()
+		_ = policy
+		//---------------------------------------
 	} else {
 
 		commitment := types.CommitPacket(k.cdc, packet)
@@ -491,6 +501,16 @@ func (k Keeper) AcknowledgePacket(
 			channel.ConnectionHops, kvGenerator); err != nil {
 			return err
 		}
+
+		// TODO: check policy against block data
+		var mProof types.MsgMultihopProofs
+		if err := k.cdc.Unmarshal(proof, &mProof); err != nil {
+			return err
+		}
+
+		policy := channel.GetVersion()
+		_ = policy
+		//---------------------------------------
 
 	} else {
 		if err := k.connectionKeeper.VerifyPacketAcknowledgement(
