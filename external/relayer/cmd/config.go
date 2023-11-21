@@ -361,6 +361,10 @@ func (c *ConfigInputWrapper) RuntimeConfig(ctx context.Context, a *appState) (*C
 		retval.GlobalProviders = append(retval.GlobalProviders, chain_val.ChainProvider)
 	}
 
+	for _, chain_prov := range retval.GlobalProviders {
+		chain_prov.SetGlobalChains(&retval.GlobalProviders)
+	}
+
 	return retval, nil
 }
 

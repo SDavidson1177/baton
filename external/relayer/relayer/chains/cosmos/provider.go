@@ -100,6 +100,7 @@ func (pc CosmosProviderConfig) NewProvider(log *zap.Logger, homepath string, deb
 
 		chanPaths:             map[string]*multihop.ChanPath{},
 		counterpartyChanPaths: map[string]*multihop.ChanPath{},
+		GlobalChains:          make([]provider.ChainProvider, 0),
 	}
 
 	return cp, nil
@@ -117,7 +118,7 @@ type CosmosProvider struct {
 	Input          io.Reader
 	Output         io.Writer
 	Cdc            Codec
-	GlobalChains   *[]provider.ChainProvider
+	GlobalChains   []provider.ChainProvider
 	// TODO: GRPC Client type?
 
 	nextAccountSeq uint64
@@ -142,8 +143,8 @@ type CosmosProvider struct {
 }
 
 func (cc *CosmosProvider) SetGlobalChains(chains *[]provider.ChainProvider) {
-	cc.GlobalChains = chains
-	fmt.Printf("Chain %v has providers %v\n", cc.ChainId(), *cc.GlobalChains)
+	cc.GlobalChains = make([]provider.ChainProvider, len(*chains))
+	copy(cc.GlobalChains, *chains)
 }
 
 func (cc *CosmosProvider) MultihopEndpoint(clientID, connectionID string) multihop.Endpoint {

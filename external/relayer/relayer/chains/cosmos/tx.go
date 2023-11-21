@@ -577,28 +577,24 @@ func (cc *CosmosProvider) newProof(key []byte, connectionHops []string) ([]byte,
 	for i := 0; i < num_paths-1; i++ {
 		// Get the correct chain
 		c_id := chanPath.Paths[i+1].EndpointB.ChainID()
-		if *cc.GlobalChains != nil {
-			for _, c := range *cc.GlobalChains {
-				if c.ChainId() == c_id {
-					block := &tmtypes.Block{}
+		for _, c := range cc.GlobalChains {
+			if c.ChainId() == c_id {
+				block := &tmtypes.Block{}
 
-					fmt.Printf("Got chain %v with the endpoint of %v\n", c.ChainId(), c_id)
+				fmt.Printf("Got chain %v with the endpoint of %v\n", c.ChainId(), c_id)
 
-					*block, err = c.QueryIBCBlock(context.Background(), int64(heights[i].GetRevisionHeight()))
-					if err != nil {
-						return nil, clienttypes.Height{}, fmt.Errorf("error generating multihop proof: %w", err)
-					}
-
-					proto_block, err := block.ToProto()
-					if err != nil {
-						return nil, clienttypes.Height{}, fmt.Errorf("error generating multihop proof: %w", err)
-					}
-					multihopProof.ConsensusBlocks = append(multihopProof.ConsensusBlocks, proto_block)
-					break
+				*block, err = c.QueryIBCBlock(context.Background(), int64(heights[i].GetRevisionHeight()))
+				if err != nil {
+					return nil, clienttypes.Height{}, fmt.Errorf("error generating multihop proof: %w", err)
 				}
+
+				proto_block, err := block.ToProto()
+				if err != nil {
+					return nil, clienttypes.Height{}, fmt.Errorf("error generating multihop proof: %w", err)
+				}
+				multihopProof.ConsensusBlocks = append(multihopProof.ConsensusBlocks, proto_block)
+				break
 			}
-		} else {
-			fmt.Println("Providers not found!")
 		}
 	}
 
