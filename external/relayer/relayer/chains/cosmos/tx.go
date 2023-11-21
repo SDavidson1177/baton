@@ -19,7 +19,6 @@ import (
 	"github.com/cometbft/cometbft/light"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
-	"github.com/cometbft/cometbft/types"
 	tmtypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -560,10 +559,49 @@ func (cc *CosmosProvider) newProof(key []byte, connectionHops []string) ([]byte,
 		return nil, clienttypes.Height{}, fmt.Errorf("error updating channel path client: %w", err)
 	}
 
-	multihopProof, err := chanPath.GenerateProof(key, nil, false)
+	multihopProof, heights, err := chanPath.GenerateProof(key, nil, false)
 	if err != nil {
 		return nil, clienttypes.Height{}, fmt.Errorf("error generating multihop proof: %w", err)
 	}
+
+	fmt.Printf("Connection hops %v\n", connectionHops)
+	fmt.Printf("Got the heights %v\n", heights)
+
+	if chanPath != nil {
+		fmt.Printf("Counterparty channel path %v\n", *chanPath)
+	}
+
+	num_paths := len(chanPath.Paths)
+
+	// Get headers for the proof
+	for i := 0; i < num_paths-1; i++ {
+		// Get the correct chain
+		c_id := chanPath.Paths[i+1].EndpointB.ChainID()
+		if *cc.GlobalChains != nil {
+			for _, c := range *cc.GlobalChains {
+				if c.ChainId() == c_id {
+					block := &tmtypes.Block{}
+
+					fmt.Printf("Got chain %v with the endpoint of %v\n", c.ChainId(), c_id)
+
+					*block, err = c.QueryIBCBlock(context.Background(), int64(heights[i].GetRevisionHeight()))
+					if err != nil {
+						return nil, clienttypes.Height{}, fmt.Errorf("error generating multihop proof: %w", err)
+					}
+
+					proto_block, err := block.ToProto()
+					if err != nil {
+						return nil, clienttypes.Height{}, fmt.Errorf("error generating multihop proof: %w", err)
+					}
+					multihopProof.ConsensusBlocks = append(multihopProof.ConsensusBlocks, proto_block)
+					break
+				}
+			}
+		} else {
+			fmt.Println("Providers not found!")
+		}
+	}
+
 	proof, err := multihopProof.Marshal()
 	if err != nil {
 		return nil, clienttypes.Height{}, fmt.Errorf("error marshaling multihop proof: %w", err)
@@ -1261,15 +1299,16 @@ func (cc *CosmosProvider) QueryIBCHeader(ctx context.Context, h int64) (provider
 }
 
 // QueryIBCBlock returns the IBC compatible block (TendermintIBCHeader) at a specific height.
-func (cc *CosmosProvider) QueryIBCBlock(ctx context.Context, h int64) (types.Block, error) {
+func (cc *CosmosProvider) QueryIBCBlock(ctx context.Context, h int64) (tmtypes.Block, error) {
 	if h == 0 {
-		return types.Block{}, fmt.Errorf("height cannot be 0")
+		return tmtypes.Block{}, fmt.Errorf("height cannot be 0")
 	}
 
 	fullBlock, err := cc.RPCClient.Block(ctx, &h)
 	if err != nil {
-		return types.Block{}, err
+		return tmtypes.Block{}, err
 	}
+
 	return *fullBlock.Block, nil
 }
 

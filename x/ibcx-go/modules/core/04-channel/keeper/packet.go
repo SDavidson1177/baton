@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"bytes"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -233,6 +234,11 @@ func (k Keeper) RecvPacket(
 
 		policy := channel.GetVersion()
 		_ = policy
+
+		// Show that we have heights
+		for _, block := range mProof.ConsensusBlocks {
+			fmt.Printf("Multihopt proof block height %v:\n", block.Header.Height)
+		}
 		//---------------------------------------
 	} else {
 

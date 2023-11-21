@@ -308,9 +308,10 @@ func (c *Config) memo(cmd *cobra.Command) string {
 
 // Config represents the config file for the relayer
 type Config struct {
-	Global GlobalConfig   `yaml:"global" json:"global"`
-	Chains relayer.Chains `yaml:"chains" json:"chains"`
-	Paths  relayer.Paths  `yaml:"paths" json:"paths"`
+	Global          GlobalConfig             `yaml:"global" json:"global"`
+	Chains          relayer.Chains           `yaml:"chains" json:"chains"`
+	Paths           relayer.Paths            `yaml:"paths" json:"paths"`
+	GlobalProviders []provider.ChainProvider `yaml:"global_providers" json:"global_providers"`
 }
 
 // ConfigOutputWrapper is an intermediary type for writing the config to disk and stdout
@@ -348,11 +349,19 @@ func (c *ConfigInputWrapper) RuntimeConfig(ctx context.Context, a *appState) (*C
 		chains[chainName] = chain
 	}
 
-	return &Config{
+	// Generate the slice of chain providers
+	retval := &Config{
 		Global: c.Global,
 		Chains: chains,
 		Paths:  c.Paths,
-	}, nil
+	}
+
+	retval.GlobalProviders = make([]provider.ChainProvider, 0)
+	for _, chain_val := range chains {
+		retval.GlobalProviders = append(retval.GlobalProviders, chain_val.ChainProvider)
+	}
+
+	return retval, nil
 }
 
 type ProviderConfigs map[string]*ProviderConfigWrapper
@@ -508,9 +517,10 @@ func defaultConfigYAML(memo string) []byte {
 
 func DefaultConfig(memo string) *Config {
 	return &Config{
-		Global: newDefaultGlobalConfig(memo),
-		Chains: make(relayer.Chains),
-		Paths:  make(relayer.Paths),
+		Global:          newDefaultGlobalConfig(memo),
+		Chains:          make(relayer.Chains),
+		Paths:           make(relayer.Paths),
+		GlobalProviders: make([]provider.ChainProvider, 0),
 	}
 }
 
@@ -543,6 +553,14 @@ func (c *Config) AddChain(chain *relayer.Chain) (err error) {
 		return fmt.Errorf("chain with ID %s already exists in config", chainId)
 	}
 	c.Chains[chain.ChainProvider.ChainName()] = chain
+
+	fmt.Printf("Adding chain %v\n", chain.ChainProvider.ChainName())
+
+	// Set Global providers
+	c.GlobalProviders = append(c.GlobalProviders, chain.ChainProvider)
+	for _, prov := range c.GlobalProviders {
+		prov.SetGlobalChains(&c.GlobalProviders)
+	}
 	return nil
 }
 

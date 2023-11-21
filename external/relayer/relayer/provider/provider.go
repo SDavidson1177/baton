@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cometbft/cometbft/types"
 	"github.com/cosmos/ibc-go/v7/modules/core/multihop"
 
 	"github.com/cometbft/cometbft/proto/tendermint/crypto"
-	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/proto"
 	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
@@ -242,6 +242,9 @@ type ChainProvider interface {
 	KeyProvider
 
 	Init(ctx context.Context) error
+
+	// Sets a pointer to all the chains in the app state
+	SetGlobalChains(chains *[]ChainProvider)
 
 	// MultihopEndpoint returns a multihop endpoint for the chain to be used for multihop proofs
 	MultihopEndpoint(clientID, connectionID string) multihop.Endpoint

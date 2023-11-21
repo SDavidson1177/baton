@@ -9,6 +9,7 @@ import "gogoproto/gogo.proto";
 import "ibc/core/client/v1/client.proto";
 import "ibc/core/channel/v1/channel.proto";
 import "ibc/core/commitment/v1/commitment.proto";
+import "tendermint/types/block.proto";
 
 // Msg defines the ibc/channel Msg service.
 service Msg {
@@ -284,7 +285,8 @@ message MsgMultihopProofs {
   option (gogoproto.equal)           = false;
   option (gogoproto.goproto_getters) = false;
 
-  MultihopProof          key_proof         = 2;
-  repeated MultihopProof connection_proofs = 3;
-  repeated MultihopProof consensus_proofs  = 4;
+  MultihopProof                    key_proof         = 2;
+  repeated MultihopProof           connection_proofs = 3;
+  repeated MultihopProof           consensus_proofs  = 4;
+  repeated .tendermint.types.Block consensus_blocks  = 5;
 }

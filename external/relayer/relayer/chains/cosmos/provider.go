@@ -117,6 +117,7 @@ type CosmosProvider struct {
 	Input          io.Reader
 	Output         io.Writer
 	Cdc            Codec
+	GlobalChains   *[]provider.ChainProvider
 	// TODO: GRPC Client type?
 
 	nextAccountSeq uint64
@@ -138,6 +139,11 @@ type CosmosProvider struct {
 	// TODO: this is a hack as there's no guarantee that they won't collide, the real fix is to find a way to get
 	// counterparty connection hops in mergeMessageCache()
 	counterpartyChanPaths map[string]*multihop.ChanPath
+}
+
+func (cc *CosmosProvider) SetGlobalChains(chains *[]provider.ChainProvider) {
+	cc.GlobalChains = chains
+	fmt.Printf("Chain %v has providers %v\n", cc.ChainId(), *cc.GlobalChains)
 }
 
 func (cc *CosmosProvider) MultihopEndpoint(clientID, connectionID string) multihop.Endpoint {

@@ -5,11 +5,11 @@ accounts:
 - name: alice
   coins:
   - 20000token
-  - 200000000stake
+  - 20000000000stake
 - name: bob
   coins:
   - 10000token
-  - 100000000stake
+  - 10000000000stake
 genesis:
   chain_id: "baton-0"
 client:
@@ -19,7 +19,7 @@ faucet:
   name: alice
   coins:
   - 5000token
-  - 100000stake
+  - 10000000stake
 validators:
 - name: alice
   bonded: 100000000stake
