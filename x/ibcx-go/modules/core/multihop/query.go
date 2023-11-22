@@ -109,7 +109,7 @@ func (p ChanPath) GenerateProof(
 	key []byte,
 	val []byte,
 	doVerify bool,
-) (result *channeltypes.MsgMultihopProofs, heights []exported.Height, err error) {
+) (result *channeltypes.MsgMultihopProofs, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			result = nil
@@ -129,12 +129,12 @@ func (p ChanPath) GenerateProof(
 		genConsensusStateProof,
 		genConnProof,
 	}
-	linkedPathProofs, conHeights, err := p.GenerateIntermediateStateProofs(proofGenFuncs)
+	linkedPathProofs, err := p.GenerateIntermediateStateProofs(proofGenFuncs)
 	if err != nil {
-		return nil, []exported.Height{}, err
+		return nil, err
 	}
 	if len(linkedPathProofs) != len(proofGenFuncs) {
-		return nil, []exported.Height{}, sdkerrors.Wrapf(
+		return nil, sdkerrors.Wrapf(
 			channeltypes.ErrMultihopProofGeneration,
 			"expected %d linked path proofs for consensus, connections, and client states but got %d",
 			len(proofGenFuncs), len(linkedPathProofs),
@@ -143,7 +143,7 @@ func (p ChanPath) GenerateProof(
 	result.ConsensusProofs = linkedPathProofs[0]
 	result.ConnectionProofs = linkedPathProofs[1]
 
-	return result, conHeights, nil
+	return result, nil
 }
 
 // The Source chain
@@ -154,7 +154,7 @@ func (p ChanPath) Source() Endpoint {
 // GenerateIntermediateStateProofs generates lists of connection, consensus, and client state proofs from the source to dest chains.
 func (p ChanPath) GenerateIntermediateStateProofs(
 	proofGenFuncs []proofGenFunc,
-) (result [][]*channeltypes.MultihopProof, heights []exported.Height, err error) {
+) (result [][]*channeltypes.MultihopProof, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			result = nil
@@ -163,7 +163,6 @@ func (p ChanPath) GenerateIntermediateStateProofs(
 	}()
 	// initialize a 2-d slice of proofs, where 1st dim is the proof gen funcs, and 2nd dim is the path iter count
 	result = make([][]*channeltypes.MultihopProof, len(proofGenFuncs))
-	heights = make([]exported.Height, 0)
 
 	// iterate over all but last single-hop path
 	iterCount := len(p.Paths) - 1
@@ -184,12 +183,9 @@ func (p ChanPath) GenerateIntermediateStateProofs(
 			proof := proofGenFunc(chainB, heightAB, heightBC, consStateBC.GetRoot())
 			result[j] = append([]*channeltypes.MultihopProof{proof}, result[j]...)
 		}
-
-		// Generate heights of consensus state proofs
-		heights = append([]exported.Height{heightBC}, heights...)
 	}
 
-	return result, heights, nil
+	return result, nil
 }
 
 func (p ChanPath) String() string {

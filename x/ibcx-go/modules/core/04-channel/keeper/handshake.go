@@ -8,6 +8,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
+	cmttypes "github.com/cometbft/cometbft/types"
 	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
 	connectiontypes "github.com/cosmos/ibc-go/v7/modules/core/03-connection/types"
 	"github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
@@ -182,6 +183,8 @@ func (k Keeper) ChanOpenTry(
 	}
 
 	// handle multihop case
+	k.Logger(ctx).Info("Handshake connection hops %v\n", connectionHops)
+	fmt.Printf("Handshake connection hops %v\n", connectionHops)
 	if len(connectionHops) > 1 {
 
 		kvGenerator := func(mProof *types.MsgMultihopProofs, multihopConnectionEnd *connectiontypes.ConnectionEnd) (string, []byte, error) {
@@ -218,6 +221,28 @@ func (k Keeper) ChanOpenTry(
 			connectionHops, kvGenerator); err != nil {
 			return "", nil, err
 		}
+
+		// TODO: check policy against block data
+		fmt.Println("Processing Block data")
+		var mProof types.MsgMultihopProofs
+		if err := k.cdc.Unmarshal(proofInit, &mProof); err != nil {
+			return "", nil, err
+		}
+
+		// Show that we have heights
+		fmt.Printf("Number of blocks %v\n", len(mProof.ConsensusBlocks))
+		for _, block := range mProof.ConsensusBlocks {
+			block_struct, err := cmttypes.BlockFromProto(block)
+
+			fmt.Printf("Multihop proof block height %v:\n", block.Header.Height)
+			if err == nil {
+				fmt.Printf("Multihop block number of validators %v with first address %v:\n", len(block_struct.LastCommit.Signatures), block_struct.LastCommit.Signatures[0].ValidatorAddress.String())
+				fmt.Printf("Multihop proof block hash %v:\n", block_struct.Hash())
+			} else {
+				fmt.Println("Cannot unmarshal block!")
+			}
+		}
+		//---------------------------------------
 
 	} else {
 

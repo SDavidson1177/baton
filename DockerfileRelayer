@@ -4,10 +4,11 @@ RUN mkdir -p ./baton/x/ibcx-go/
 RUN mkdir -p ./baton/external/relayer/
 COPY ./x/ibcx-go/ ./baton/x/ibcx-go/
 COPY ./external/relayer/ ./baton/external/relayer/
+
 WORKDIR ./baton/external/relayer/
 RUN make install
-
 WORKDIR ..
+
 COPY chain0-config.json .
 COPY chain1-config.json .
 COPY chain2-config.json .

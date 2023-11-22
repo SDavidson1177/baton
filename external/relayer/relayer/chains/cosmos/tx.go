@@ -36,6 +36,7 @@ import (
 	chantypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	commitmenttypes "github.com/cosmos/ibc-go/v7/modules/core/23-commitment/types"
 	host "github.com/cosmos/ibc-go/v7/modules/core/24-host"
+	"github.com/cosmos/ibc-go/v7/modules/core/exported"
 	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
 	tmclient "github.com/cosmos/ibc-go/v7/modules/light-clients/07-tendermint"
 	strideicqtypes "github.com/cosmos/relayer/v2/relayer/chains/cosmos/stride"
@@ -559,41 +560,49 @@ func (cc *CosmosProvider) newProof(key []byte, connectionHops []string) ([]byte,
 		return nil, clienttypes.Height{}, fmt.Errorf("error updating channel path client: %w", err)
 	}
 
-	multihopProof, heights, err := chanPath.GenerateProof(key, nil, false)
+	multihopProof, err := chanPath.GenerateProof(key, nil, false)
 	if err != nil {
 		return nil, clienttypes.Height{}, fmt.Errorf("error generating multihop proof: %w", err)
 	}
 
 	fmt.Printf("Connection hops %v\n", connectionHops)
-	fmt.Printf("Got the heights %v\n", heights)
+
+	chan_heights := make([]exported.Height, 0)
+	num_paths := 0
 
 	if chanPath != nil {
 		fmt.Printf("Counterparty channel path %v\n", *chanPath)
-	}
 
-	num_paths := len(chanPath.Paths)
+		num_paths = len(chanPath.Paths)
+		for i := 0; i < num_paths-1; i++ {
+			// The height is for the counterparty chain
+			chan_heights = append(chan_heights, chanPath.Paths[i].EndpointB.GetConsensusHeight())
+		}
 
-	// Get headers for the proof
-	for i := 0; i < num_paths-1; i++ {
-		// Get the correct chain
-		c_id := chanPath.Paths[i+1].EndpointB.ChainID()
-		for _, c := range cc.GlobalChains {
-			if c.ChainId() == c_id {
-				block := &tmtypes.Block{}
+		fmt.Printf("Got channel heights %v\n", chan_heights)
 
-				fmt.Printf("Got chain %v with the endpoint of %v\n", c.ChainId(), c_id)
+		// Get headers for the proof
+		for i := 0; i < num_paths-1; i++ {
+			// Get the correct chain (recall from earlier, we need the id of the counterparty chain)
+			c_id := chanPath.Paths[i].EndpointA.ChainID()
+			for _, c := range cc.GlobalChains {
+				if c.ChainId() == c_id {
+					block := &tmtypes.Block{}
 
-				*block, err = c.QueryIBCBlock(context.Background(), int64(heights[i].GetRevisionHeight()))
-				if err != nil {
-					return nil, clienttypes.Height{}, fmt.Errorf("error generating multihop proof: %w", err)
+					fmt.Printf("Got chain %v with the endpoint of %v\n", c.ChainId(), c_id)
+
+					*block, err = c.QueryIBCBlock(context.Background(), int64(chan_heights[i].GetRevisionHeight()))
+					if err != nil {
+						return nil, clienttypes.Height{}, fmt.Errorf("error generating multihop proof: %w", err)
+					}
+
+					proto_block, err := block.ToProto()
+					if err != nil {
+						return nil, clienttypes.Height{}, fmt.Errorf("error generating multihop proof: %w", err)
+					}
+					multihopProof.ConsensusBlocks = append(multihopProof.ConsensusBlocks, proto_block)
+					break
 				}
-
-				proto_block, err := block.ToProto()
-				if err != nil {
-					return nil, clienttypes.Height{}, fmt.Errorf("error generating multihop proof: %w", err)
-				}
-				multihopProof.ConsensusBlocks = append(multihopProof.ConsensusBlocks, proto_block)
-				break
 			}
 		}
 	}
