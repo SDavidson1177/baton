@@ -361,6 +361,9 @@ $ %s tx conn demo-path --timeout 5s`,
 				return err
 			}
 
+			// Get the version for the Connection
+			version, _ := cmd.Flags().GetString(flagVersion)
+
 			// ensure that keys exist
 			if exists := c[src].ChainProvider.KeyExists(c[src].ChainProvider.Key()); !exists {
 				return fmt.Errorf("key %s not found on src chain %s", c[src].ChainProvider.Key(), c[src].ChainID())
@@ -387,7 +390,7 @@ $ %s tx conn demo-path --timeout 5s`,
 				}
 			}
 
-			connectionSrc, connectionDst, err := c[src].CreateOpenConnections(cmd.Context(), c[dst], retries, to, memo, initialBlockHistory, pathName)
+			connectionSrc, connectionDst, err := c[src].CreateOpenConnections(cmd.Context(), c[dst], retries, to, memo, initialBlockHistory, pathName, version)
 			if err != nil {
 				return err
 			}
@@ -689,7 +692,7 @@ $ %s tx connect demo-path --src-port transfer --dst-port transfer --order unorde
 				}
 
 				// create connection if it isn't already created
-				connectionSrc, connectionDst, err := c[srcChainID].CreateOpenConnections(cmd.Context(), c[dstChainID], retries, to, memo, initialBlockHistory, pathName)
+				connectionSrc, connectionDst, err := c[srcChainID].CreateOpenConnections(cmd.Context(), c[dstChainID], retries, to, memo, initialBlockHistory, pathName, "")
 				if err != nil {
 					return fmt.Errorf("error creating connections: %w", err)
 				}

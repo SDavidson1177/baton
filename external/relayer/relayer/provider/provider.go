@@ -119,6 +119,7 @@ type ConnectionInfo struct {
 	CounterpartyClientID         string
 	CounterpartyConnID           string
 	CounterpartyCommitmentPrefix commitmenttypes.MerklePrefix
+	Version                      []string
 }
 
 // ChannelInfo contains relevant properties from channel handshake messages
