@@ -82,6 +82,7 @@ func (c *Chain) CreateOpenConnections(
 					ClientID:                     c.PathEnd.ClientID,
 					CounterpartyClientID:         dst.PathEnd.ClientID,
 					CounterpartyCommitmentPrefix: dst.ChainProvider.CommitmentPrefix(),
+					Version:                      version_split,
 				},
 			},
 			Termination: &processor.ConnectionMessage{

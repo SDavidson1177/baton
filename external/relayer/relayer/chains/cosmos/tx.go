@@ -803,6 +803,21 @@ func (cc *CosmosProvider) MsgConnectionOpenInit(info provider.ConnectionInfo, pr
 	if err != nil {
 		return nil, err
 	}
+
+	// Retrieve the connection version
+	var version *conntypes.Version
+	version_len := len(info.Version)
+	if version_len == 0 {
+		version = nil
+	} else {
+		version = &conntypes.Version{}
+		version.Identifier = info.Version[0]
+		version.Features = make([]string, version_len-1)
+		for i := 1; i < version_len; i++ {
+			version.Features[i-1] = info.Version[i]
+		}
+	}
+
 	msg := &conntypes.MsgConnectionOpenInit{
 		ClientId: info.ClientID,
 		Counterparty: conntypes.Counterparty{
@@ -810,7 +825,7 @@ func (cc *CosmosProvider) MsgConnectionOpenInit(info provider.ConnectionInfo, pr
 			ConnectionId: "",
 			Prefix:       info.CounterpartyCommitmentPrefix,
 		},
-		Version:     nil,
+		Version:     version,
 		DelayPeriod: defaultDelayPeriod,
 		Signer:      signer,
 	}
