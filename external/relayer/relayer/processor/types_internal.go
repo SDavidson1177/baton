@@ -223,7 +223,7 @@ func (msg connectionIBCMessage) assemble(
 	src, dst *pathEndRuntime,
 	connectionHops []string,
 ) (provider.RelayerMessage, error) {
-	var connProof func(context.Context, provider.ConnectionInfo, uint64) (provider.ConnectionProof, error)
+	var connProof func(context.Context, provider.ConnectionInfo, uint64) (provider.ConnectionProof, []*conntypes.Version, error)
 	var assembleMessage func(provider.ConnectionInfo, provider.ConnectionProof) (provider.RelayerMessage, error)
 	switch msg.eventType {
 	case conntypes.EventTypeConnectionOpenInit:
@@ -245,12 +245,21 @@ func (msg connectionIBCMessage) assemble(
 	}
 	var proof provider.ConnectionProof
 	var err error
+	var connVersion []*conntypes.Version
 	if connProof != nil {
-		proof, err = connProof(ctx, msg.info, src.latestBlock.Height)
+		proof, connVersion, err = connProof(ctx, msg.info, src.latestBlock.Height)
 		if err != nil {
 			return nil, fmt.Errorf("error querying connection proof: %w", err)
 		}
 	}
+
+	// TODO: For now, choose the first version
+	if len(connVersion) > 0 {
+		msg.info.Version = make([]string, 1)
+		msg.info.Version[0] = connVersion[0].GetIdentifier()
+		msg.info.Version = append(msg.info.Version, connVersion[0].GetFeatures()...)
+	}
+
 	return assembleMessage(msg.info, proof)
 }
 

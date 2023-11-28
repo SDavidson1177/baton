@@ -329,10 +329,10 @@ type ChainProvider interface {
 	// [Begin] Connection handshake IBC message assembly
 
 	// ConnectionHandshakeProof queries for proof of an initialized connection handshake.
-	ConnectionHandshakeProof(ctx context.Context, msgOpenInit ConnectionInfo, height uint64) (ConnectionProof, error)
+	ConnectionHandshakeProof(ctx context.Context, msgOpenInit ConnectionInfo, height uint64) (ConnectionProof, []*conntypes.Version, error)
 
 	// ConnectionProof queries for proof of an acked handshake.
-	ConnectionProof(ctx context.Context, msgOpenAck ConnectionInfo, height uint64) (ConnectionProof, error)
+	ConnectionProof(ctx context.Context, msgOpenAck ConnectionInfo, height uint64) (ConnectionProof, []*conntypes.Version, error)
 
 	// MsgConnectionOpenInit takes connection info and assembles a MsgConnectionOpenInit message
 	// ready to write to the chain. The connection proof is not needed here, but it needs
@@ -479,7 +479,7 @@ type QueryProvider interface {
 	QueryConnectionsUsingClient(ctx context.Context, height int64, clientid string) (*conntypes.QueryConnectionsResponse, error)
 	GenerateConnHandshakeProof(ctx context.Context, height int64, clientId, connId string) (clientState ibcexported.ClientState,
 		clientStateProof []byte, consensusProof []byte, connectionProof []byte,
-		connectionProofHeight ibcexported.Height, err error)
+		connectionProofHeight ibcexported.Height, versions []*conntypes.Version, err error)
 
 	// ics 04 - channel
 	QueryChannel(ctx context.Context, height int64, channelid, portid string) (chanRes *chantypes.QueryChannelResponse, err error)

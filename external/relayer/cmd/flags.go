@@ -62,6 +62,8 @@ const (
 	defaultDebugAddr = "localhost:7597"
 
 	blankValue = "blank"
+
+	defaultVersion = "ics20-1"
 )
 
 func ibcDenomFlags(v *viper.Viper, cmd *cobra.Command) *cobra.Command {
@@ -310,7 +312,7 @@ func orderFlag(v *viper.Viper, cmd *cobra.Command) *cobra.Command {
 }
 
 func versionFlag(v *viper.Viper, cmd *cobra.Command) *cobra.Command {
-	cmd.Flags().StringP(flagVersion, "v", "ics20-1", "version of channel to create")
+	cmd.Flags().StringP(flagVersion, "v", defaultVersion, "version of channel to create")
 	if err := v.BindPFlag(flagVersion, cmd.Flags().Lookup(flagVersion)); err != nil {
 		panic(err)
 	}

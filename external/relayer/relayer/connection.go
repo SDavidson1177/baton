@@ -30,7 +30,6 @@ func (c *Chain) CreateOpenConnections(
 
 	// Get the version. Should be of the format {id}-{feature1}-{feature2}
 	version_split := strings.Split(version, "-")
-	_ = version_split
 
 	// Timeout is per message. Four connection handshake messages, allowing maxRetries for each.
 	processorTimeout := timeout * 4 * time.Duration(maxRetries)

@@ -648,7 +648,7 @@ func (cc *CosmosProvider) QueryConnectionsUsingClient(ctx context.Context, heigh
 
 // GenerateConnHandshakeProof generates all the proofs needed to prove the existence of the
 // connection state on this chain. A counterparty should use these generated proofs.
-func (cc *CosmosProvider) GenerateConnHandshakeProof(ctx context.Context, height int64, clientId, connId string) (clientState ibcexported.ClientState, clientStateProof []byte, consensusProof []byte, connectionProof []byte, connectionProofHeight ibcexported.Height, err error) {
+func (cc *CosmosProvider) GenerateConnHandshakeProof(ctx context.Context, height int64, clientId, connId string) (clientState ibcexported.ClientState, clientStateProof []byte, consensusProof []byte, connectionProof []byte, connectionProofHeight ibcexported.Height, versions []*conntypes.Version, err error) {
 	var (
 		clientStateRes     *clienttypes.QueryClientStateResponse
 		consensusStateRes  *clienttypes.QueryConsensusStateResponse
@@ -659,12 +659,12 @@ func (cc *CosmosProvider) GenerateConnHandshakeProof(ctx context.Context, height
 	// query for the client state for the proof and get the height to query the consensus state at.
 	clientStateRes, err = cc.QueryClientStateResponse(ctx, height, clientId)
 	if err != nil {
-		return nil, nil, nil, nil, clienttypes.Height{}, err
+		return nil, nil, nil, nil, clienttypes.Height{}, []*conntypes.Version{}, err
 	}
 
 	clientState, err = clienttypes.UnpackClientState(clientStateRes.ClientState)
 	if err != nil {
-		return nil, nil, nil, nil, clienttypes.Height{}, err
+		return nil, nil, nil, nil, clienttypes.Height{}, []*conntypes.Version{}, err
 	}
 
 	eg.Go(func() error {
@@ -679,10 +679,10 @@ func (cc *CosmosProvider) GenerateConnHandshakeProof(ctx context.Context, height
 	})
 
 	if err := eg.Wait(); err != nil {
-		return nil, nil, nil, nil, clienttypes.Height{}, err
+		return nil, nil, nil, nil, clienttypes.Height{}, []*conntypes.Version{}, err
 	}
 
-	return clientState, clientStateRes.Proof, consensusStateRes.Proof, connectionStateRes.Proof, connectionStateRes.ProofHeight, nil
+	return clientState, clientStateRes.Proof, consensusStateRes.Proof, connectionStateRes.Proof, connectionStateRes.ProofHeight, connectionStateRes.Connection.Versions, nil
 }
 
 // QueryChannel returns the channel associated with a channelID
