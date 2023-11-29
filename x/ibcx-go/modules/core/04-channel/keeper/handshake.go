@@ -41,6 +41,8 @@ func (k Keeper) ChanOpenInit(
 	// corresponding to the connection to chain Z for the logic to be meaningful.
 	// ******************************************************************************************
 
+	// This checks that the ordering on the connection for the receiving chain supports the ordering
+	// given for this channel.
 	if len(connectionHops) == 1 {
 		getVersions := connectionEnd.GetVersions()
 		if len(getVersions) != 1 {

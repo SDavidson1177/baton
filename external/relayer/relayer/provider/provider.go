@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cometbft/cometbft/types"
+	"github.com/cosmos/ibc-go/v7/modules/core/exported"
 	"github.com/cosmos/ibc-go/v7/modules/core/multihop"
 
 	"github.com/cometbft/cometbft/proto/tendermint/crypto"
@@ -138,6 +139,13 @@ type ChannelInfo struct {
 
 	Order   chantypes.Order
 	Version string
+
+	// Initiating chain needs to check that the given channel order is compatible
+	// with the versions specified on the connection to the receiving chain. For
+	// example, version of connection to destination chain must have the feature
+	// ORDER_ORDERED in order to specify Order = ORDERED Order = 2. Therefore, we
+	// must include the version for that connection
+	CounterparyConnVersions []exported.Version
 }
 
 // ConnectionHops splits the list of connection hops to turn it into an array.
