@@ -116,9 +116,9 @@ func (c *Chain) CreateOpenChannels(
 		return fmt.Errorf("cannot query the height for the destination chain upon channel creation")
 	}
 
-	dstConnectionEnd, err := c.ChainProvider.QueryConnection(ctx, dstHeight, hopConnectionIDs[len(hopConnectionIDs)-1])
+	dstConnectionEnd, err := dst.ChainProvider.QueryConnection(ctx, dstHeight, dst.PathEnd.ConnectionID)
 	if err != nil {
-		return fmt.Errorf("cannot find connection end for destination chain upon channel creation")
+		return fmt.Errorf("cannot find connection end for destination chain upon channel creation: %v", dst.PathEnd.ConnectionID)
 	}
 
 	dstVersions := dstConnectionEnd.Connection.GetVersions()
