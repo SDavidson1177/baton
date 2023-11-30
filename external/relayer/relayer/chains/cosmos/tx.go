@@ -997,6 +997,18 @@ func (cc *CosmosProvider) MsgChannelOpenInit(info provider.ChannelInfo, proof pr
 	if err != nil {
 		return nil, err
 	}
+
+	// Convert versions to the correct type
+	cosmos_versions := make([]*conntypes.Version, len(info.CounterparyConnVersions))
+	for i, v := range info.CounterparyConnVersions {
+		new_version, ok := v.(*conntypes.Version)
+		if !ok {
+			return nil, err
+		}
+
+		cosmos_versions[i] = new_version
+	}
+
 	msg := &chantypes.MsgChannelOpenInit{
 		PortId: info.PortID,
 		Channel: chantypes.Channel{
@@ -1006,8 +1018,9 @@ func (cc *CosmosProvider) MsgChannelOpenInit(info provider.ChannelInfo, proof pr
 				PortId:    info.CounterpartyPortID,
 				ChannelId: "",
 			},
-			ConnectionHops: info.ConnectionHops(),
-			Version:        info.Version,
+			ConnectionHops:           info.ConnectionHops(),
+			Version:                  info.Version,
+			CounterpartyConnVersions: cosmos_versions,
 		},
 		Signer: signer,
 	}
