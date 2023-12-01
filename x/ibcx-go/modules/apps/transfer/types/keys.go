@@ -15,6 +15,9 @@ const (
 	// module supports
 	Version = "ics20-1"
 
+	// Version pattern permitted
+	VersionPattern = "ics20-1/validators:x"
+
 	// PortID is the default port id that transfer module binds to
 	PortID = "transfer"
 

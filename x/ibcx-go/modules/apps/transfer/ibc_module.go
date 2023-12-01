@@ -61,6 +61,38 @@ func ValidateTransferChannelParams(
 	return nil
 }
 
+// Returns true iff the given version is correct
+// for this module
+func CheckVersion(version string) bool {
+	var version_split []string
+
+	if strings.TrimSpace(version) == "" {
+		version_split = make([]string, 0)
+		version_split[0] = types.Version
+	} else {
+		// Get each of the versions
+		// of format "version1:metric/version2:metric..."
+		version_split = strings.Split(version, "/")
+	}
+
+	// Make sure that the correct versions are given
+	// 1. ics20-1
+	// 2. validators:x (For baton. Tells IBC to check the number of validators on intermediate chains)
+	got_ics, got_val := false, false
+	for _, v := range version_split {
+		if strings.TrimSpace(v) == types.Version {
+			got_ics = true
+		} else {
+			v_split := strings.Split(strings.TrimSpace(v), ":")
+			if len(v_split) > 0 && v_split[0] == channeltypes.VERSION_VALIDATORS {
+				got_val = true
+			}
+		}
+	}
+
+	return got_ics && got_val
+}
+
 // OnChanOpenInit implements the IBCModule interface
 func (im IBCModule) OnChanOpenInit(
 	ctx sdk.Context,
@@ -76,12 +108,8 @@ func (im IBCModule) OnChanOpenInit(
 		return "", err
 	}
 
-	if strings.TrimSpace(version) == "" {
-		version = types.Version
-	}
-
-	if version != types.Version {
-		return "", sdkerrors.Wrapf(types.ErrInvalidVersion, "got %s, expected %s", version, types.Version)
+	if !CheckVersion(version) {
+		return "", sdkerrors.Wrapf(types.ErrInvalidVersion, "got %s, expected %s and %s", version, types.Version, channeltypes.VERSION_VALIDATORS)
 	}
 
 	// Claim channel capability passed back by IBC module
@@ -107,8 +135,9 @@ func (im IBCModule) OnChanOpenTry(
 		return "", err
 	}
 
-	if counterpartyVersion != types.Version {
-		return "", sdkerrors.Wrapf(types.ErrInvalidVersion, "invalid counterparty version: got: %s, expected %s", counterpartyVersion, types.Version)
+	// Make sure that the counterparty chooses a valid version
+	if !CheckVersion(counterpartyVersion) {
+		return "", sdkerrors.Wrapf(types.ErrInvalidVersion, "invalid counterparty version: got: %s, expected %s", counterpartyVersion, types.VersionPattern)
 	}
 
 	// OpenTry must claim the channelCapability that IBC passes into the callback
@@ -116,7 +145,8 @@ func (im IBCModule) OnChanOpenTry(
 		return "", err
 	}
 
-	return types.Version, nil
+	// Choose the same version as the counterparty
+	return counterpartyVersion, nil
 }
 
 // OnChanOpenAck implements the IBCModule interface
@@ -127,8 +157,9 @@ func (im IBCModule) OnChanOpenAck(
 	_ string,
 	counterpartyVersion string,
 ) error {
-	if counterpartyVersion != types.Version {
-		return sdkerrors.Wrapf(types.ErrInvalidVersion, "invalid counterparty version: %s, expected %s", counterpartyVersion, types.Version)
+	// Make sure that the counterparty chooses a valid version
+	if !CheckVersion(counterpartyVersion) {
+		return sdkerrors.Wrapf(types.ErrInvalidVersion, "invalid counterparty version: got: %s, expected %s", counterpartyVersion, types.VersionPattern)
 	}
 	return nil
 }
