@@ -2,8 +2,11 @@ package keeper
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	cmttypes "github.com/cometbft/cometbft/types"
@@ -16,6 +19,7 @@ import (
 	"github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
 	host "github.com/cosmos/ibc-go/v7/modules/core/24-host"
 	"github.com/cosmos/ibc-go/v7/modules/core/exported"
+	tmclient "github.com/cosmos/ibc-go/v7/modules/light-clients/07-tendermint"
 )
 
 // SendPacket is called by a module in order to send an IBC packet on a channel.
@@ -125,6 +129,90 @@ func (k Keeper) SendPacket(
 	return packet.GetSequence(), nil
 }
 
+// ValidatePolicy is called to check whether or not the chains used to
+// validate the packet being received adhear to the policy requirement
+// given by the channel.
+func (k Keeper) ValidatePolicy(
+	channel *types.Channel,
+	proof []byte,
+) error {
+	parseVersion := func(version string) [][]string {
+		retval := make([][]string, 0)
+
+		// Split versions
+		versions_split := strings.Split(strings.Trim(version, " "), "/")
+		for _, v := range versions_split {
+			version_metrics := strings.Split(strings.Trim(v, " "), ":")
+			if len(version_metrics) > 0 {
+				retval = append(retval, version_metrics)
+			}
+		}
+
+		return retval
+	}
+
+	// Validate that there are at least min_amount validators
+	validateNumValidators := func(min_amount int) error {
+		// Get multihop proof
+		var mProof types.MsgMultihopProofs
+		if err := k.cdc.Unmarshal(proof, &mProof); err != nil {
+			return err
+		}
+
+		for i, block := range mProof.ConsensusBlocks {
+			block_struct, err := cmttypes.BlockFromProto(block)
+			if err != nil {
+				return err
+			}
+
+			num_validators := len(block_struct.LastCommit.Signatures)
+
+			// Check the number of validators
+			if num_validators < min_amount {
+				return fmt.Errorf("intermediate chain does not have enough validators. Got %v, require %v", num_validators, min_amount)
+			}
+
+			// Make sure the block validates against the consensus state
+			var consensusState tmclient.ConsensusState
+			k.cdc.UnmarshalInterface(mProof.ConsensusProofs[i].Value, &consensusState)
+			if !reflect.DeepEqual(block_struct.LastCommitHash.Bytes(), consensusState.LastCommitHash.Bytes()) {
+				return fmt.Errorf("block last commit hash does not match with consensus state. Got %v, require %v",
+					string(block_struct.LastCommitHash.Bytes()),
+					string(consensusState.LastCommitHash.Bytes()))
+			} else {
+				fmt.Printf("Last Commit Hashes: Got %v, require %v",
+					string(block_struct.LastCommitHash.Bytes()),
+					string(consensusState.LastCommitHash.Bytes()))
+			}
+		}
+
+		return nil
+	}
+
+	all_versions := parseVersion(channel.GetVersion())
+
+	for _, v := range all_versions {
+		switch v[0] {
+		case types.VERSION_VALIDATORS:
+			if len(v) <= 1 {
+				return errors.New("missing number of validators in channel version")
+			}
+
+			// Make sure there are enough validators
+			n, err := strconv.Atoi(v[1])
+			if err != nil {
+				return err
+			}
+
+			if err := validateNumValidators(n); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // RecvPacket is called by a module in order to receive & process an IBC packet
 // sent on the corresponding channel end on the counterparty chain.
 func (k Keeper) RecvPacket(
@@ -229,24 +317,9 @@ func (k Keeper) RecvPacket(
 		}
 
 		// TODO: check policy against block data
-		fmt.Println("Processing Block data")
-		var mProof types.MsgMultihopProofs
-		if err := k.cdc.Unmarshal(proof, &mProof); err != nil {
-			return nil
-		}
-
-		// Show that we have heights
-		fmt.Printf("Number of blocks %v\n", len(mProof.ConsensusBlocks))
-		for _, block := range mProof.ConsensusBlocks {
-			block_struct, err := cmttypes.BlockFromProto(block)
-
-			fmt.Printf("Multihop proof block height %v:\n", block.Header.Height)
-			if err == nil {
-				fmt.Printf("Multihop block number of validators %v with first address %v:\n", len(block_struct.LastCommit.Signatures), block_struct.LastCommit.Signatures[0].ValidatorAddress.String())
-				fmt.Printf("Multihop proof block hash %v:\n", block_struct.Hash())
-			} else {
-				fmt.Println("Cannot unmarshal block!")
-			}
+		err := k.ValidatePolicy(&channel, proof)
+		if err != nil {
+			return err
 		}
 		//---------------------------------------
 	} else {

@@ -192,7 +192,6 @@ func (k Keeper) ChanOpenTry(
 	k.Logger(ctx).Info("Handshake connection hops %v\n", connectionHops)
 	fmt.Printf("Handshake connection hops %v\n", connectionHops)
 	if len(connectionHops) > 1 {
-
 		kvGenerator := func(mProof *types.MsgMultihopProofs, multihopConnectionEnd *connectiontypes.ConnectionEnd) (string, []byte, error) {
 			// check version support
 			if err := versionCheckFunc(multihopConnectionEnd); err != nil {
