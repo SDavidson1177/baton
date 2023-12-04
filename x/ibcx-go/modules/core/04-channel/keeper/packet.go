@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"reflect"
@@ -165,24 +166,35 @@ func (k Keeper) ValidatePolicy(
 				return err
 			}
 
+			block_struct.Hash() // populates hashes
 			num_validators := len(block_struct.LastCommit.Signatures)
 
 			// Check the number of validators
 			if num_validators < min_amount {
 				return fmt.Errorf("intermediate chain does not have enough validators. Got %v, require %v", num_validators, min_amount)
+			} else {
+				fmt.Printf("Policy: intermediate chain has enough validators. Got %v, require %v", num_validators, min_amount)
 			}
 
 			// Make sure the block validates against the consensus state
-			var consensusState tmclient.ConsensusState
-			k.cdc.UnmarshalInterface(mProof.ConsensusProofs[i].Value, &consensusState)
+			var consensusInterface exported.ConsensusState
+			if err = k.cdc.UnmarshalInterface(mProof.ConsensusProofs[i].Value, &consensusInterface); err != nil {
+				return err
+			}
+
+			consensusState, ok := consensusInterface.(*tmclient.ConsensusState)
+			if !ok {
+				return fmt.Errorf("cannot type case consensus state")
+			}
+
 			if !reflect.DeepEqual(block_struct.LastCommitHash.Bytes(), consensusState.LastCommitHash.Bytes()) {
 				return fmt.Errorf("block last commit hash does not match with consensus state. Got %v, require %v",
-					string(block_struct.LastCommitHash.Bytes()),
-					string(consensusState.LastCommitHash.Bytes()))
+					hex.EncodeToString(block_struct.LastCommitHash.Bytes()),
+					hex.EncodeToString(consensusState.LastCommitHash.Bytes()))
 			} else {
-				fmt.Printf("Last Commit Hashes: Got %v, require %v",
-					string(block_struct.LastCommitHash.Bytes()),
-					string(consensusState.LastCommitHash.Bytes()))
+				fmt.Printf("Policy: Last Commit Hashes: Got %v, require %v",
+					hex.EncodeToString(block_struct.LastCommitHash.Bytes()),
+					hex.EncodeToString(consensusState.LastCommitHash.Bytes()))
 			}
 		}
 
