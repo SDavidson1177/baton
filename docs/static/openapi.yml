@@ -37336,6 +37336,29 @@ paths:
                     title: >-
                       opaque channel version, which is agreed upon during the
                       handshake
+                  counterparty_conn_versions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        identifier:
+                          type: string
+                          title: unique version identifier
+                        features:
+                          type: array
+                          items:
+                            type: string
+                          title: >-
+                            list of features compatible with the specified
+                            identifier
+                      description: >-
+                        Version defines the versioning scheme used to negotiate
+                        the IBC verison in
+
+                        the connection handshake.
+                    title: >-
+                      versions for the connection connected to the counterparty
+                      chain
                 description: >-
                   Channel defines pipeline for exactly-once packet delivery
                   between specific
@@ -71272,6 +71295,25 @@ definitions:
       version:
         type: string
         title: opaque channel version, which is agreed upon during the handshake
+      counterparty_conn_versions:
+        type: array
+        items:
+          type: object
+          properties:
+            identifier:
+              type: string
+              title: unique version identifier
+            features:
+              type: array
+              items:
+                type: string
+              title: list of features compatible with the specified identifier
+          description: >-
+            Version defines the versioning scheme used to negotiate the IBC
+            verison in
+
+            the connection handshake.
+        title: versions for the connection connected to the counterparty chain
     description: |-
       Channel defines pipeline for exactly-once packet delivery between specific
       modules on separate blockchains, which has at least one end capable of
@@ -72052,6 +72094,25 @@ definitions:
           version:
             type: string
             title: opaque channel version, which is agreed upon during the handshake
+          counterparty_conn_versions:
+            type: array
+            items:
+              type: object
+              properties:
+                identifier:
+                  type: string
+                  title: unique version identifier
+                features:
+                  type: array
+                  items:
+                    type: string
+                  title: list of features compatible with the specified identifier
+              description: >-
+                Version defines the versioning scheme used to negotiate the IBC
+                verison in
+
+                the connection handshake.
+            title: versions for the connection connected to the counterparty chain
         description: >-
           Channel defines pipeline for exactly-once packet delivery between
           specific
@@ -73014,6 +73075,20 @@ definitions:
     description: |-
       IdentifiedClientState defines a client state with an additional client
       identifier field.
+  ibc.core.connection.v1.Version:
+    type: object
+    properties:
+      identifier:
+        type: string
+        title: unique version identifier
+      features:
+        type: array
+        items:
+          type: string
+        title: list of features compatible with the specified identifier
+    description: |-
+      Version defines the versioning scheme used to negotiate the IBC verison in
+      the connection handshake.
   ibc.core.client.v1.ConsensusStateWithHeight:
     type: object
     properties:
@@ -75585,17 +75660,3 @@ definitions:
        - STATE_TRYOPEN: A connection end has acknowledged the handshake step on the counterparty
       chain.
        - STATE_OPEN: A connection end has completed the handshake.
-  ibc.core.connection.v1.Version:
-    type: object
-    properties:
-      identifier:
-        type: string
-        title: unique version identifier
-      features:
-        type: array
-        items:
-          type: string
-        title: list of features compatible with the specified identifier
-    description: |-
-      Version defines the versioning scheme used to negotiate the IBC verison in
-      the connection handshake.

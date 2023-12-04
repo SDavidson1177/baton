@@ -109,18 +109,33 @@ func (c *Chain) CreateOpenChannels(
 		zap.String("dst_chain_id", dst.PathEnd.ChainID),
 		zap.String("dst_port_id", dstPortID),
 	)
+
+	// Get the version of the connection to the destination chain
+	dstHeight, err := dst.ChainProvider.QueryLatestHeight(ctx)
+	if err != nil {
+		return fmt.Errorf("cannot query the height for the destination chain upon channel creation")
+	}
+
+	dstConnectionEnd, err := dst.ChainProvider.QueryConnection(ctx, dstHeight, dst.PathEnd.ConnectionID)
+	if err != nil {
+		return fmt.Errorf("cannot find connection end for destination chain upon channel creation: %v", dst.PathEnd.ConnectionID)
+	}
+
+	dstVersions := dstConnectionEnd.Connection.GetVersions()
+
 	connectionHops := chantypes.FormatConnectionID(hopConnectionIDs)
 	counterpartyConnectionHops := chantypes.FormatConnectionID(counterpartyHopConnectionIDs)
 	openInitMsg := &processor.ChannelMessage{
 		ChainID:   c.PathEnd.ChainID,
 		EventType: chantypes.EventTypeChannelOpenInit,
 		Info: provider.ChannelInfo{
-			PortID:             srcPortID,
-			CounterpartyPortID: dstPortID,
-			ConnID:             connectionHops,
-			CounterpartyConnID: counterpartyConnectionHops,
-			Version:            version,
-			Order:              OrderFromString(order),
+			PortID:                  srcPortID,
+			CounterpartyPortID:      dstPortID,
+			ConnID:                  connectionHops,
+			CounterpartyConnID:      counterpartyConnectionHops,
+			Version:                 version,
+			Order:                   OrderFromString(order),
+			CounterparyConnVersions: dstVersions,
 		},
 	}
 	c.log.Info("Initializing channel",

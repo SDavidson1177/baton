@@ -803,6 +803,23 @@ func (cc *CosmosProvider) MsgConnectionOpenInit(info provider.ConnectionInfo, pr
 	if err != nil {
 		return nil, err
 	}
+
+	// Retrieve the connection version
+	var version *conntypes.Version
+	version_len := len(info.Version) - 1
+
+	if version_len == 1 {
+		// TODO: Make better check for default version [ics20 1] --> [1]
+		version = nil
+	} else {
+		version = &conntypes.Version{}
+		version.Identifier = info.Version[1] // index zero should be "ics20"
+		version.Features = make([]string, version_len-1)
+		for i := 1; i < version_len; i++ {
+			version.Features[i-1] = info.Version[i+1]
+		}
+	}
+
 	msg := &conntypes.MsgConnectionOpenInit{
 		ClientId: info.ClientID,
 		Counterparty: conntypes.Counterparty{
@@ -810,7 +827,7 @@ func (cc *CosmosProvider) MsgConnectionOpenInit(info provider.ConnectionInfo, pr
 			ConnectionId: "",
 			Prefix:       info.CounterpartyCommitmentPrefix,
 		},
-		Version:     nil,
+		Version:     version,
 		DelayPeriod: defaultDelayPeriod,
 		Signer:      signer,
 	}
@@ -822,10 +839,11 @@ func (cc *CosmosProvider) ConnectionHandshakeProof(
 	ctx context.Context,
 	msgOpenInit provider.ConnectionInfo,
 	height uint64,
-) (provider.ConnectionProof, error) {
-	clientState, clientStateProof, consensusStateProof, connStateProof, proofHeight, err := cc.GenerateConnHandshakeProof(ctx, int64(height), msgOpenInit.ClientID, msgOpenInit.ConnID)
+) (provider.ConnectionProof, []*conntypes.Version, error) {
+	clientState, clientStateProof, consensusStateProof, connStateProof, proofHeight, versions, err := cc.GenerateConnHandshakeProof(ctx, int64(height), msgOpenInit.ClientID, msgOpenInit.ConnID)
+
 	if err != nil {
-		return provider.ConnectionProof{}, err
+		return provider.ConnectionProof{}, []*conntypes.Version{}, err
 	}
 
 	if len(connStateProof) == 0 {
@@ -833,7 +851,7 @@ func (cc *CosmosProvider) ConnectionHandshakeProof(
 		// If the connection state proof is empty, there is no point in returning the next message.
 		// We are not using (*conntypes.MsgConnectionOpenTry).ValidateBasic here because
 		// that chokes on cross-chain bech32 details in ibc-go.
-		return provider.ConnectionProof{}, fmt.Errorf("received invalid zero-length connection state proof")
+		return provider.ConnectionProof{}, []*conntypes.Version{}, fmt.Errorf("received invalid zero-length connection state proof")
 	}
 
 	return provider.ConnectionProof{
@@ -842,7 +860,7 @@ func (cc *CosmosProvider) ConnectionHandshakeProof(
 		ConsensusStateProof:  consensusStateProof,
 		ConnectionStateProof: connStateProof,
 		ProofHeight:          proofHeight.(clienttypes.Height),
-	}, nil
+	}, versions, nil
 }
 
 func (cc *CosmosProvider) MsgConnectionOpenTry(msgOpenInit provider.ConnectionInfo, proof provider.ConnectionProof) (provider.RelayerMessage, error) {
@@ -862,13 +880,31 @@ func (cc *CosmosProvider) MsgConnectionOpenTry(msgOpenInit provider.ConnectionIn
 		Prefix:       defaultChainPrefix,
 	}
 
+	// Retrieve the connection version
+	var version []ibcexported.Version
+	version_len := len(msgOpenInit.Version)
+
+	if version_len == 1 {
+		// TODO: Make better check for default version [ics20 1] --> [1]
+		version = conntypes.GetCompatibleVersions()
+	} else {
+		tmp := &conntypes.Version{}
+		tmp.Identifier = msgOpenInit.Version[0] // index zero should be "ics20"
+		for i := 1; i < version_len; i++ {
+			tmp.Features = append(tmp.Features, msgOpenInit.Version[i])
+		}
+
+		version = make([]ibcexported.Version, 1)
+		version[0] = tmp
+	}
+
 	msg := &conntypes.MsgConnectionOpenTry{
 		ClientId:             msgOpenInit.CounterpartyClientID,
 		PreviousConnectionId: msgOpenInit.CounterpartyConnID,
 		ClientState:          csAny,
 		Counterparty:         counterparty,
 		DelayPeriod:          defaultDelayPeriod,
-		CounterpartyVersions: conntypes.ExportedVersionsToProto(conntypes.GetCompatibleVersions()),
+		CounterpartyVersions: conntypes.ExportedVersionsToProto(version),
 		ProofHeight:          proof.ProofHeight,
 		ProofInit:            proof.ConnectionStateProof,
 		ProofClient:          proof.ClientStateProof,
@@ -891,10 +927,25 @@ func (cc *CosmosProvider) MsgConnectionOpenAck(msgOpenTry provider.ConnectionInf
 		return nil, err
 	}
 
+	// Retrieve the connection version
+	var version *conntypes.Version
+	version_len := len(msgOpenTry.Version)
+
+	if version_len == 1 {
+		// TODO: Make better check for default version [ics20 1] --> [1]
+		version = conntypes.DefaultIBCVersion
+	} else {
+		version = &conntypes.Version{}
+		version.Identifier = msgOpenTry.Version[0] // index zero should be "ics20"
+		for i := 1; i < version_len; i++ {
+			version.Features = append(version.Features, msgOpenTry.Version[i])
+		}
+	}
+
 	msg := &conntypes.MsgConnectionOpenAck{
 		ConnectionId:             msgOpenTry.CounterpartyConnID,
 		CounterpartyConnectionId: msgOpenTry.ConnID,
-		Version:                  conntypes.DefaultIBCVersion,
+		Version:                  version,
 		ClientState:              csAny,
 		ProofHeight: clienttypes.Height{
 			RevisionNumber: proof.ProofHeight.GetRevisionNumber(),
@@ -914,16 +965,16 @@ func (cc *CosmosProvider) ConnectionProof(
 	ctx context.Context,
 	msgOpenAck provider.ConnectionInfo,
 	height uint64,
-) (provider.ConnectionProof, error) {
+) (provider.ConnectionProof, []*conntypes.Version, error) {
 	connState, err := cc.QueryConnection(ctx, int64(height), msgOpenAck.ConnID)
 	if err != nil {
-		return provider.ConnectionProof{}, err
+		return provider.ConnectionProof{}, []*conntypes.Version{}, err
 	}
 
 	return provider.ConnectionProof{
 		ConnectionStateProof: connState.Proof,
 		ProofHeight:          connState.ProofHeight,
-	}, nil
+	}, []*conntypes.Version{}, nil
 }
 
 func (cc *CosmosProvider) MsgConnectionOpenConfirm(msgOpenAck provider.ConnectionInfo, proof provider.ConnectionProof) (provider.RelayerMessage, error) {
@@ -946,6 +997,18 @@ func (cc *CosmosProvider) MsgChannelOpenInit(info provider.ChannelInfo, proof pr
 	if err != nil {
 		return nil, err
 	}
+
+	// Convert versions to the correct type
+	cosmos_versions := make([]*conntypes.Version, len(info.CounterparyConnVersions))
+	for i, v := range info.CounterparyConnVersions {
+		new_version, ok := v.(*conntypes.Version)
+		if !ok {
+			return nil, err
+		}
+
+		cosmos_versions[i] = new_version
+	}
+
 	msg := &chantypes.MsgChannelOpenInit{
 		PortId: info.PortID,
 		Channel: chantypes.Channel{
@@ -955,8 +1018,9 @@ func (cc *CosmosProvider) MsgChannelOpenInit(info provider.ChannelInfo, proof pr
 				PortId:    info.CounterpartyPortID,
 				ChannelId: "",
 			},
-			ConnectionHops: info.ConnectionHops(),
-			Version:        info.Version,
+			ConnectionHops:           info.ConnectionHops(),
+			Version:                  info.Version,
+			CounterpartyConnVersions: cosmos_versions,
 		},
 		Signer: signer,
 	}

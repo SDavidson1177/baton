@@ -8,7 +8,6 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 
-	cmttypes "github.com/cometbft/cometbft/types"
 	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
 	connectiontypes "github.com/cosmos/ibc-go/v7/modules/core/03-connection/types"
 	"github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
@@ -29,6 +28,7 @@ func (k Keeper) ChanOpenInit(
 	portCap *capabilitytypes.Capability,
 	counterparty types.Counterparty,
 	version string,
+	counterpartyConnVersions []*connectiontypes.Version,
 ) (string, *capabilitytypes.Capability, error) {
 	// connection hop length checked on msg.ValidateBasic()
 	connectionEnd, found := k.connectionKeeper.GetConnection(ctx, connectionHops[0])
@@ -36,28 +36,34 @@ func (k Keeper) ChanOpenInit(
 		return "", nil, sdkerrors.Wrap(connectiontypes.ErrConnectionNotFound, connectionHops[0])
 	}
 
-	// ******************************************************************************************
-	// TODO: This is a bug for a multihop channels. For multihop we need the connectionEnd
-	// corresponding to the connection to chain Z for the logic to be meaningful.
-	// ******************************************************************************************
-
+	// This checks that the ordering on the connection for the receiving chain supports the ordering
+	// given for this channel.
+	var getVersions []exported.Version
 	if len(connectionHops) == 1 {
-		getVersions := connectionEnd.GetVersions()
-		if len(getVersions) != 1 {
-			return "", nil, sdkerrors.Wrapf(
-				connectiontypes.ErrInvalidVersion,
-				"single version must be negotiated on connection before opening channel, got: %v",
-				getVersions,
-			)
+		getVersions = connectionEnd.GetVersions()
+	} else {
+		// Check the version for the connection to the destination chain
+		num_versions := len(counterpartyConnVersions)
+		getVersions = make([]exported.Version, num_versions)
+		for i := 0; i < num_versions; i++ {
+			getVersions[i] = counterpartyConnVersions[i]
 		}
+	}
 
-		if !connectiontypes.VerifySupportedFeature(getVersions[0], order.String()) {
-			return "", nil, sdkerrors.Wrapf(
-				connectiontypes.ErrInvalidVersion,
-				"connection version %s does not support channel ordering: %s",
-				getVersions[0], order.String(),
-			)
-		}
+	if len(getVersions) != 1 {
+		return "", nil, sdkerrors.Wrapf(
+			connectiontypes.ErrInvalidVersion,
+			"single version must be negotiated on connection before opening channel, got: %v",
+			getVersions,
+		)
+	}
+
+	if !connectiontypes.VerifySupportedFeature(getVersions[0], order.String()) {
+		return "", nil, sdkerrors.Wrapf(
+			connectiontypes.ErrInvalidVersion,
+			"connection version %s does not support channel ordering: %s",
+			getVersions[0], order.String(),
+		)
 	}
 
 	clientState, found := k.clientKeeper.GetClientState(ctx, connectionEnd.ClientId)
@@ -186,7 +192,6 @@ func (k Keeper) ChanOpenTry(
 	k.Logger(ctx).Info("Handshake connection hops %v\n", connectionHops)
 	fmt.Printf("Handshake connection hops %v\n", connectionHops)
 	if len(connectionHops) > 1 {
-
 		kvGenerator := func(mProof *types.MsgMultihopProofs, multihopConnectionEnd *connectiontypes.ConnectionEnd) (string, []byte, error) {
 			// check version support
 			if err := versionCheckFunc(multihopConnectionEnd); err != nil {
@@ -221,28 +226,6 @@ func (k Keeper) ChanOpenTry(
 			connectionHops, kvGenerator); err != nil {
 			return "", nil, err
 		}
-
-		// TODO: check policy against block data
-		fmt.Println("Processing Block data")
-		var mProof types.MsgMultihopProofs
-		if err := k.cdc.Unmarshal(proofInit, &mProof); err != nil {
-			return "", nil, err
-		}
-
-		// Show that we have heights
-		fmt.Printf("Number of blocks %v\n", len(mProof.ConsensusBlocks))
-		for _, block := range mProof.ConsensusBlocks {
-			block_struct, err := cmttypes.BlockFromProto(block)
-
-			fmt.Printf("Multihop proof block height %v:\n", block.Header.Height)
-			if err == nil {
-				fmt.Printf("Multihop block number of validators %v with first address %v:\n", len(block_struct.LastCommit.Signatures), block_struct.LastCommit.Signatures[0].ValidatorAddress.String())
-				fmt.Printf("Multihop proof block hash %v:\n", block_struct.Hash())
-			} else {
-				fmt.Println("Cannot unmarshal block!")
-			}
-		}
-		//---------------------------------------
 
 	} else {
 

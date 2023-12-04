@@ -18,4 +18,4 @@ sleep 10
 
 rly paths new baton-0 baton-2 path3 baton-1 
 sleep 1
-rly tx channel path3 --src-port transfer --dst-port transfer --order unordered --version ics20-1
+rly tx channel path3 --src-port transfer --dst-port transfer --order unordered --version "ics20-1/validators:1"

@@ -183,7 +183,7 @@ func (k Keeper) ChannelOpenInit(goCtx context.Context, msg *channeltypes.MsgChan
 	// Perform 04-channel verification
 	channelID, cap, err := k.ChannelKeeper.ChanOpenInit(
 		ctx, msg.Channel.Ordering, msg.Channel.ConnectionHops, msg.PortId,
-		portCap, msg.Channel.Counterparty, msg.Channel.Version,
+		portCap, msg.Channel.Counterparty, msg.Channel.Version, msg.Channel.CounterpartyConnVersions,
 	)
 	if err != nil {
 		ctx.Logger().Error("channel open init callback failed", "error", sdkerrors.Wrap(err, "channel handshake open init failed"))

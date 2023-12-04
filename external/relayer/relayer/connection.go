@@ -2,6 +2,7 @@ package relayer
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	conntypes "github.com/cosmos/ibc-go/v7/modules/core/03-connection/types"
@@ -20,11 +21,15 @@ func (c *Chain) CreateOpenConnections(
 	memo string,
 	initialBlockHistory uint64,
 	pathName string,
+	version string,
 ) (string, string, error) {
 	// client identifiers must be filled in
 	if err := ValidateClientPaths(c, dst); err != nil {
 		return "", "", err
 	}
+
+	// Get the version. Should be of the format {id}-{feature1}-{feature2}
+	version_split := strings.Split(version, "-")
 
 	// Timeout is per message. Four connection handshake messages, allowing maxRetries for each.
 	processorTimeout := timeout * 4 * time.Duration(maxRetries)
@@ -76,6 +81,7 @@ func (c *Chain) CreateOpenConnections(
 					ClientID:                     c.PathEnd.ClientID,
 					CounterpartyClientID:         dst.PathEnd.ClientID,
 					CounterpartyCommitmentPrefix: dst.ChainProvider.CommitmentPrefix(),
+					Version:                      version_split,
 				},
 			},
 			Termination: &processor.ConnectionMessage{

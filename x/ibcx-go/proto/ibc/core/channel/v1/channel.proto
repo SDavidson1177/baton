@@ -6,6 +6,7 @@ option go_package = "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types";
 
 import "gogoproto/gogo.proto";
 import "ibc/core/client/v1/client.proto";
+import "ibc/core/connection/v1/connection.proto";
 
 // Channel defines pipeline for exactly-once packet delivery between specific
 // modules on separate blockchains, which has at least one end capable of
@@ -24,6 +25,8 @@ message Channel {
   repeated string connection_hops = 4 [(gogoproto.moretags) = "yaml:\"connection_hops\""];
   // opaque channel version, which is agreed upon during the handshake
   string version = 5;
+  // versions for the connection connected to the counterparty chain
+  repeated ibc.core.connection.v1.Version counterparty_conn_versions = 6;
 }
 
 // IdentifiedChannel defines a channel with additional port and channel

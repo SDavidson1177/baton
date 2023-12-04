@@ -13,7 +13,13 @@ var (
 	// in connection version negotiation. The current version supports only
 	// ORDERED and UNORDERED channels and requires at least one channel type
 	// to be agreed upon.
-	DefaultIBCVersion = NewVersion(DefaultIBCVersionIdentifier, []string{"ORDER_ORDERED", "ORDER_UNORDERED"})
+	// To allow for new version features, we must include them in DefaultIBCVersion.
+	// The current connection handshake checks against DefaultIBCVersion when
+	// determining if a given version is valid.
+	//
+	// COUNT_VALIDATORS: Allows endpoints to ensure intermediate chains maintain minimum
+	//	validator limit.
+	DefaultIBCVersion = NewVersion(DefaultIBCVersionIdentifier, []string{"ORDER_ORDERED", "ORDER_UNORDERED", "COUNT_VALIDATORS"})
 
 	// DefaultIBCVersionIdentifier is the IBC v1.0.0 protocol version identifier
 	DefaultIBCVersionIdentifier = "1"

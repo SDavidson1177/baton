@@ -361,6 +361,9 @@ $ %s tx conn demo-path --timeout 5s`,
 				return err
 			}
 
+			// Get the version for the Connection
+			version, _ := cmd.Flags().GetString(flagVersion)
+
 			// ensure that keys exist
 			if exists := c[src].ChainProvider.KeyExists(c[src].ChainProvider.Key()); !exists {
 				return fmt.Errorf("key %s not found on src chain %s", c[src].ChainProvider.Key(), c[src].ChainID())
@@ -387,7 +390,7 @@ $ %s tx conn demo-path --timeout 5s`,
 				}
 			}
 
-			connectionSrc, connectionDst, err := c[src].CreateOpenConnections(cmd.Context(), c[dst], retries, to, memo, initialBlockHistory, pathName)
+			connectionSrc, connectionDst, err := c[src].CreateOpenConnections(cmd.Context(), c[dst], retries, to, memo, initialBlockHistory, pathName, version)
 			if err != nil {
 				return err
 			}
@@ -407,6 +410,7 @@ $ %s tx conn demo-path --timeout 5s`,
 	cmd = overrideFlag(a.viper, cmd)
 	cmd = memoFlag(a.viper, cmd)
 	cmd = initBlockFlag(a.viper, cmd)
+	cmd = versionFlag(a.viper, cmd)
 	return cmd
 }
 
@@ -420,9 +424,9 @@ along a specific path.`,
 		),
 		Args: withUsage(cobra.ExactArgs(1)),
 		Example: strings.TrimSpace(fmt.Sprintf(`
-$ %s transact channel demo-path --src-port transfer --dst-port transfer --order unordered --version ics20-1
+$ %s transact channel demo-path --src-port transfer --dst-port transfer --order unordered --version %s
 $ %s tx chan demo-path --timeout 5s --max-retries 10`,
-			appName, appName,
+			appName, defaultVersion, appName,
 		)),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pathName := args[0]
@@ -561,8 +565,8 @@ to creating a connection and a channel between the two networks on a configured 
 		Example: strings.TrimSpace(fmt.Sprintf(`
 $ %s transact link demo-path --src-port transfer --dst-port transfer
 $ %s tx link demo-path
-$ %s tx connect demo-path --src-port transfer --dst-port transfer --order unordered --version ics20-1`,
-			appName, appName, appName,
+$ %s tx connect demo-path --src-port transfer --dst-port transfer --order unordered --version %s`,
+			appName, appName, appName, defaultVersion,
 		)),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			allowUpdateAfterExpiry, err := cmd.Flags().GetBool(flagUpdateAfterExpiry)
@@ -689,7 +693,7 @@ $ %s tx connect demo-path --src-port transfer --dst-port transfer --order unorde
 				}
 
 				// create connection if it isn't already created
-				connectionSrc, connectionDst, err := c[srcChainID].CreateOpenConnections(cmd.Context(), c[dstChainID], retries, to, memo, initialBlockHistory, pathName)
+				connectionSrc, connectionDst, err := c[srcChainID].CreateOpenConnections(cmd.Context(), c[dstChainID], retries, to, memo, initialBlockHistory, pathName, "")
 				if err != nil {
 					return fmt.Errorf("error creating connections: %w", err)
 				}
