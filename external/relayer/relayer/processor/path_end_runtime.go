@@ -446,6 +446,15 @@ func (pathEnd *pathEndRuntime) shouldSendPacketMessage(message packetIBCMessage,
 		return false
 	}
 
+	pathEnd.log.Warn("Checking the following packet to be processed",
+		zap.String("Chain ID", pathEnd.chainProvider.ChainId()),
+		zap.String("SC", message.info.SourceChannel),
+		zap.String("SP", message.info.SourcePort),
+		zap.String("DC", message.info.DestChannel),
+		zap.String("DP", message.info.DestPort),
+		zap.Uint64("SEQ", message.info.Sequence),
+		zap.Uint64("HEIGHT", message.info.Height))
+
 	pathEndForHeight := counterparty
 	if eventType == chantypes.EventTypeTimeoutPacket || eventType == chantypes.EventTypeTimeoutPacketOnClose {
 		pathEndForHeight = pathEnd
@@ -547,7 +556,7 @@ func (pathEnd *pathEndRuntime) shouldSendPacketMessage(message packetIBCMessage,
 		pathEnd.removePacketRetention(counterparty, eventType, k, sequence)
 		return false
 	}
-	pathEnd.log.Debug("This message can be sent",
+	pathEnd.log.Info("This message can be sent",
 		zap.String("chain_id", pathEnd.chainProvider.ChainId()),
 		zap.String("event_type", eventType),
 		zap.Uint64("sequence", sequence),
