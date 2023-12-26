@@ -3,6 +3,8 @@ package keeper
 import (
 	"fmt"
 
+	"baton/x/splitter/types"
+
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
@@ -14,7 +16,7 @@ import (
 	host "github.com/cosmos/ibc-go/v7/modules/core/24-host"
 	"github.com/cosmos/ibc-go/v7/modules/core/exported"
 
-	"baton/x/splitter/types"
+	porttypes "github.com/cosmos/ibc-go/v7/modules/core/05-port/types"
 )
 
 type (
@@ -27,6 +29,9 @@ type (
 		channelKeeper types.ChannelKeeper
 		portKeeper    types.PortKeeper
 		scopedKeeper  exported.ScopedKeeper
+
+		// Middleware
+		app porttypes.IBCModule
 	}
 )
 
@@ -38,6 +43,7 @@ func NewKeeper(
 	channelKeeper types.ChannelKeeper,
 	portKeeper types.PortKeeper,
 	scopedKeeper exported.ScopedKeeper,
+	app porttypes.IBCModule,
 
 ) *Keeper {
 	// set KeyTable if it has not already been set
@@ -54,6 +60,7 @@ func NewKeeper(
 		channelKeeper: channelKeeper,
 		portKeeper:    portKeeper,
 		scopedKeeper:  scopedKeeper,
+		app:           app,
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 
 	"baton/x/splitter/keeper"
 	"baton/x/splitter/types"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
@@ -146,6 +147,12 @@ func (im IBCModule) OnRecvPacket(
 	if err := modulePacketData.Unmarshal(modulePacket.GetData()); err != nil {
 		return channeltypes.NewErrorAcknowledgement(sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "cannot unmarshal packet data: %s", err.Error()))
 	}
+
+	// This module is expected to receive a number of identical packets from differenct channels
+	// This represents sending messages along multiple paths (one way to prevent corrupt chains
+	// from fabricating messages). We must store each of these messages in the modules store. Once
+	// we have received a predefined amount of indentical messages, we can forward that message
+	// to the underlying module.
 
 	// Dispatch packet
 	switch packet := modulePacketData.Packet.(type) {

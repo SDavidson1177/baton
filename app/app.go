@@ -119,6 +119,7 @@ import (
 	splittermodule "baton/x/splitter"
 	splittermodulekeeper "baton/x/splitter/keeper"
 	splittermoduletypes "baton/x/splitter/types"
+
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
 	appparams "baton/app/params"
@@ -567,6 +568,7 @@ func New(
 		app.IBCKeeper.ChannelKeeper,
 		&app.IBCKeeper.PortKeeper,
 		scopedSplitterKeeper,
+		transferIBCModule,
 	)
 	splitterModule := splittermodule.NewAppModule(appCodec, app.SplitterKeeper, app.AccountKeeper, app.BankKeeper)
 
