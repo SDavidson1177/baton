@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package baton.splitter;
+
+import "gogoproto/gogo.proto";
+import "baton/splitter/params.proto";
+
+option go_package = "baton/x/splitter/types";
+
+// GenesisState defines the splitter module's genesis state.
+message GenesisState {
+  Params params  = 1 [(gogoproto.nullable) = false];
+  string port_id = 2;
+}
+

@@ -1,0 +1,7 @@
+syntax = "proto3";
+package baton.splitter;
+
+option go_package = "baton/x/splitter/types";
+
+// Msg defines the Msg service.
+service Msg {}

@@ -1,0 +1,13 @@
+syntax = "proto3";
+package baton.splitter;
+
+option go_package = "baton/x/splitter/types";
+
+message SplitterPacketData {
+    oneof packet {
+        NoData noData = 1;
+    }
+}
+
+message NoData {
+}
