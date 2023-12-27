@@ -1,7 +1,7 @@
 package splitter
 
 import (
-	"fmt"
+	"encoding/json"
 
 	"baton/x/splitter/keeper"
 	"baton/x/splitter/types"
@@ -9,9 +9,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
+	middlewaretypes "github.com/cosmos/ibc-go/v7/modules/apps/30-middleware/types"
 	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
-	porttypes "github.com/cosmos/ibc-go/v7/modules/core/05-port/types"
-	host "github.com/cosmos/ibc-go/v7/modules/core/24-host"
 	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
 )
 
@@ -37,22 +36,63 @@ func (im IBCModule) OnChanOpenInit(
 	version string,
 ) (string, error) {
 
-	// Require portID is the portID module is bound to
-	boundPort := im.keeper.GetPort(ctx)
-	if boundPort != portID {
-		return "", sdkerrors.Wrapf(porttypes.ErrInvalidPort, "invalid port: %s, expected %s", portID, boundPort)
+	var metadata middlewaretypes.MiddlewareVersion
+
+	if version != "" {
+		// try to unmarshal JSON-encoded version string and pass
+		// the app-specific version to app callback.
+		// otherwise, pass version directly to app callback.
+
+		err := json.Unmarshal([]byte(version), &metadata)
+		if err != nil {
+			// call the underlying application's onChanOpenInit callback
+			return im.keeper.GetApp().OnChanOpenInit(
+				ctx,
+				order,
+				connectionHops,
+				portID,
+				channelID,
+				chanCap,
+				counterparty,
+				version,
+			)
+		}
+	} else {
+		// TODO: better way to get the app's default version
+		metadata = middlewaretypes.MiddlewareVersion{
+			MiddlewareVersion: "splitter",
+			AppVersion:        "ics20-1",
+		}
 	}
 
-	if version != types.Version {
-		return "", sdkerrors.Wrapf(types.ErrInvalidVersion, "got %s, expected %s", version, types.Version)
+	// CUSTOM LOGIC GOES HERE
+
+	// call the underlying application's OnChanOpenInit callback.
+	// if the version string is empty, OnChanOpenInit is expected to return
+	// a default version string representing the version(s) it supports
+	appVersion, err := im.keeper.GetApp().OnChanOpenInit(
+		ctx,
+		order,
+		connectionHops,
+		portID,
+		channelID,
+		chanCap,
+		counterparty,
+		metadata.AppVersion, // The version asso
+	)
+	if err != nil {
+		return "", sdkerrors.Wrapf(types.ErrInvalidVersion, "could not complete app chan open init")
 	}
 
-	// Claim channel capability passed back by IBC module
-	if err := im.keeper.ClaimCapability(ctx, chanCap, host.ChannelCapabilityPath(portID, channelID)); err != nil {
-		return "", err
+	metadata.AppVersion = appVersion
+
+	// Marshal the version
+	version_bytes, err := json.Marshal(metadata)
+	if err != nil {
+		return "", sdkerrors.Wrapf(types.ErrInvalidVersion, "cannot marshal new version")
 	}
 
-	return version, nil
+	return string(version_bytes), nil
 }
 
 // OnChanOpenTry implements the IBCModule interface
@@ -67,28 +107,56 @@ func (im IBCModule) OnChanOpenTry(
 	counterpartyVersion string,
 ) (string, error) {
 
-	// Require portID is the portID module is bound to
-	boundPort := im.keeper.GetPort(ctx)
-	if boundPort != portID {
-		return "", sdkerrors.Wrapf(porttypes.ErrInvalidPort, "invalid port: %s, expected %s", portID, boundPort)
+	// try to unmarshal JSON-encoded version string and pass
+	// the app-specific version to app callback.
+	// otherwise, pass version directly to app callback.
+	var cpMetadata middlewaretypes.MiddlewareVersion
+	err := json.Unmarshal([]byte(counterpartyVersion), &cpMetadata)
+	if err != nil {
+		// call the underlying application's OnChanOpenTry callback
+		return im.keeper.GetApp().OnChanOpenTry(
+			ctx,
+			order,
+			connectionHops,
+			portID,
+			channelID,
+			chanCap,
+			counterparty,
+			counterpartyVersion,
+		)
 	}
 
-	if counterpartyVersion != types.Version {
-		return "", sdkerrors.Wrapf(types.ErrInvalidVersion, "invalid counterparty version: got: %s, expected %s", counterpartyVersion, types.Version)
+	// select mutually compatible middleware version
+	// TODO: Check this
+	// if !isCompatible(cpMetadata.middlewareVersion) {
+	// 	return "", error
+	// }
+	// middlewareVersion = selectMiddlewareVersion(cpMetadata.middlewareVersion)
+
+	// call the underlying application's OnChanOpenTry callback
+	appVersion, err := im.keeper.GetApp().OnChanOpenTry(
+		ctx,
+		order,
+		connectionHops,
+		portID,
+		channelID,
+		chanCap,
+		counterparty,
+		cpMetadata.AppVersion, // note we only pass counterparty app version here
+	)
+	if err != nil {
+		return "", sdkerrors.Wrapf(types.ErrInvalidVersion, "could not complete app chan open init")
 	}
 
-	// Module may have already claimed capability in OnChanOpenInit in the case of crossing hellos
-	// (ie chainA and chainB both call ChanOpenInit before one of them calls ChanOpenTry)
-	// If module can already authenticate the capability then module already owns it so we don't need to claim
-	// Otherwise, module does not have channel capability and we must claim it from IBC
-	if !im.keeper.AuthenticateCapability(ctx, chanCap, host.ChannelCapabilityPath(portID, channelID)) {
-		// Only claim channel capability passed back by IBC module if we do not already own it
-		if err := im.keeper.ClaimCapability(ctx, chanCap, host.ChannelCapabilityPath(portID, channelID)); err != nil {
-			return "", err
-		}
+	cpMetadata.AppVersion = appVersion
+
+	// Marshal the version
+	version_bytes, err := json.Marshal(cpMetadata)
+	if err != nil {
+		return "", sdkerrors.Wrapf(types.ErrInvalidVersion, "cannot marshal new version")
 	}
 
-	return types.Version, nil
+	return string(version_bytes), nil
 }
 
 // OnChanOpenAck implements the IBCModule interface
@@ -96,13 +164,36 @@ func (im IBCModule) OnChanOpenAck(
 	ctx sdk.Context,
 	portID,
 	channelID string,
-	_,
+	counterpartChannelID string,
 	counterpartyVersion string,
 ) error {
-	if counterpartyVersion != types.Version {
-		return sdkerrors.Wrapf(types.ErrInvalidVersion, "invalid counterparty version: %s, expected %s", counterpartyVersion, types.Version)
+	var cpMetadata middlewaretypes.MiddlewareVersion
+	err := json.Unmarshal([]byte(counterpartyVersion), &cpMetadata)
+	if err != nil {
+		// call the underlying application's OnChanOpenAck callback
+		return im.keeper.GetApp().OnChanOpenAck(
+			ctx,
+			portID,
+			channelID,
+			counterpartChannelID,
+			counterpartyVersion,
+		)
 	}
-	return nil
+
+	// TODO: Check this
+	// if !isSupported(cpMetadata.middlewareVersion) {
+	// 	return error
+	// }
+	// doCustomLogic()
+
+	// call the underlying application's OnChanOpenAck callback
+	return im.keeper.GetApp().OnChanOpenAck(
+		ctx,
+		portID,
+		channelID,
+		counterpartChannelID,
+		cpMetadata.AppVersion,
+	)
 }
 
 // OnChanOpenConfirm implements the IBCModule interface
@@ -111,7 +202,7 @@ func (im IBCModule) OnChanOpenConfirm(
 	portID,
 	channelID string,
 ) error {
-	return nil
+	return im.keeper.GetApp().OnChanOpenConfirm(ctx, portID, channelID)
 }
 
 // OnChanCloseInit implements the IBCModule interface
@@ -139,31 +230,9 @@ func (im IBCModule) OnRecvPacket(
 	modulePacket channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) ibcexported.Acknowledgement {
-	var ack channeltypes.Acknowledgement
 
 	// this line is used by starport scaffolding # oracle/packet/module/recv
-
-	var modulePacketData types.SplitterPacketData
-	if err := modulePacketData.Unmarshal(modulePacket.GetData()); err != nil {
-		return channeltypes.NewErrorAcknowledgement(sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "cannot unmarshal packet data: %s", err.Error()))
-	}
-
-	// This module is expected to receive a number of identical packets from differenct channels
-	// This represents sending messages along multiple paths (one way to prevent corrupt chains
-	// from fabricating messages). We must store each of these messages in the modules store. Once
-	// we have received a predefined amount of indentical messages, we can forward that message
-	// to the underlying module.
-
-	// Dispatch packet
-	switch packet := modulePacketData.Packet.(type) {
-	// this line is used by starport scaffolding # ibc/packet/module/recv
-	default:
-		err := fmt.Errorf("unrecognized %s packet type: %T", types.ModuleName, packet)
-		return channeltypes.NewErrorAcknowledgement(err)
-	}
-
-	// NOTE: acknowledgement will be written synchronously during IBC handler execution.
-	return ack
+	return im.keeper.GetApp().OnRecvPacket(ctx, modulePacket, relayer)
 }
 
 // OnAcknowledgementPacket implements the IBCModule interface
@@ -173,54 +242,7 @@ func (im IBCModule) OnAcknowledgementPacket(
 	acknowledgement []byte,
 	relayer sdk.AccAddress,
 ) error {
-	var ack channeltypes.Acknowledgement
-	if err := types.ModuleCdc.UnmarshalJSON(acknowledgement, &ack); err != nil {
-		return sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "cannot unmarshal packet acknowledgement: %v", err)
-	}
-
-	// this line is used by starport scaffolding # oracle/packet/module/ack
-
-	var modulePacketData types.SplitterPacketData
-	if err := modulePacketData.Unmarshal(modulePacket.GetData()); err != nil {
-		return sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "cannot unmarshal packet data: %s", err.Error())
-	}
-
-	var eventType string
-
-	// Dispatch packet
-	switch packet := modulePacketData.Packet.(type) {
-	// this line is used by starport scaffolding # ibc/packet/module/ack
-	default:
-		errMsg := fmt.Sprintf("unrecognized %s packet type: %T", types.ModuleName, packet)
-		return sdkerrors.Wrap(sdkerrors.ErrUnknownRequest, errMsg)
-	}
-
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			eventType,
-			sdk.NewAttribute(sdk.AttributeKeyModule, types.ModuleName),
-			sdk.NewAttribute(types.AttributeKeyAck, fmt.Sprintf("%v", ack)),
-		),
-	)
-
-	switch resp := ack.Response.(type) {
-	case *channeltypes.Acknowledgement_Result:
-		ctx.EventManager().EmitEvent(
-			sdk.NewEvent(
-				eventType,
-				sdk.NewAttribute(types.AttributeKeyAckSuccess, string(resp.Result)),
-			),
-		)
-	case *channeltypes.Acknowledgement_Error:
-		ctx.EventManager().EmitEvent(
-			sdk.NewEvent(
-				eventType,
-				sdk.NewAttribute(types.AttributeKeyAckError, resp.Error),
-			),
-		)
-	}
-
-	return nil
+	return im.keeper.GetApp().OnAcknowledgementPacket(ctx, modulePacket, acknowledgement, relayer)
 }
 
 // OnTimeoutPacket implements the IBCModule interface
@@ -229,18 +251,5 @@ func (im IBCModule) OnTimeoutPacket(
 	modulePacket channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) error {
-	var modulePacketData types.SplitterPacketData
-	if err := modulePacketData.Unmarshal(modulePacket.GetData()); err != nil {
-		return sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "cannot unmarshal packet data: %s", err.Error())
-	}
-
-	// Dispatch packet
-	switch packet := modulePacketData.Packet.(type) {
-	// this line is used by starport scaffolding # ibc/packet/module/timeout
-	default:
-		errMsg := fmt.Sprintf("unrecognized %s packet type: %T", types.ModuleName, packet)
-		return sdkerrors.Wrap(sdkerrors.ErrUnknownRequest, errMsg)
-	}
-
-	return nil
+	return im.keeper.GetApp().OnTimeoutPacket(ctx, modulePacket, relayer)
 }

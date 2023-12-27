@@ -36,7 +36,7 @@ services:
     build:
       dockerfile: ./DockerfileRelayer1
     volumes:
-      - relayer-config:/root/.relayer
+      - ./.relayer:/root/.relayer
     networks:
       baton-chain-net:
         ipv4_address: 192.167.10.5
@@ -46,7 +46,7 @@ services:
       build:
         dockerfile: ./DockerfileRelayer2
       volumes:
-        - relayer-config:/root/.relayer
+        - ./.relayer:/root/.relayer
       networks:
         baton-chain-net:
           ipv4_address: 192.167.10.6
@@ -58,6 +58,3 @@ networks:
       driver: default
       config:
         - subnet: 192.167.10.0/16
-
-volumes:
-  relayer-config:

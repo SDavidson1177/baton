@@ -68,6 +68,10 @@ func NewKeeper(
 // IBC Keeper Logic
 // ----------------------------------------------------------------------------
 
+func (k Keeper) GetApp() porttypes.IBCModule {
+	return k.app
+}
+
 // ChanCloseInit defines a wrapper function for the channel Keeper's function.
 func (k Keeper) ChanCloseInit(ctx sdk.Context, portID, channelID string) error {
 	capName := host.ChannelCapabilityPath(portID, channelID)
@@ -116,4 +120,14 @@ func (k Keeper) ClaimCapability(ctx sdk.Context, cap *capabilitytypes.Capability
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("x/%s", types.ModuleName))
+}
+
+// GetAppVersion gets the version for the specified channel.
+func (k Keeper) GetAppVersion(ctx sdk.Context, portID, channelID string) (string, bool) {
+	channel, found := k.channelKeeper.GetChannel(ctx, portID, channelID)
+	if !found {
+		return "", false
+	}
+
+	return channel.Version, true
 }

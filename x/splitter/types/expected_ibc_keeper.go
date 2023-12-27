@@ -5,6 +5,7 @@ import (
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
+	"github.com/cosmos/ibc-go/v7/modules/core/exported"
 )
 
 // ChannelKeeper defines the expected IBC channel keeper.
@@ -21,6 +22,12 @@ type ChannelKeeper interface {
 		data []byte,
 	) (uint64, error)
 	ChanCloseInit(ctx sdk.Context, portID, channelID string, chanCap *capabilitytypes.Capability) error
+	WriteAcknowledgement(
+		ctx sdk.Context,
+		chanCap *capabilitytypes.Capability,
+		packet exported.PacketI,
+		acknowledgement exported.Acknowledgement,
+	) error
 }
 
 // PortKeeper defines the expected IBC port keeper.
