@@ -583,7 +583,7 @@ func New(
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
 	ibcRouter.AddRoute(icahosttypes.SubModuleName, icaHostIBCModule).
-		AddRoute(ibctransfertypes.ModuleName, transferIBCModule)
+		AddRoute(ibctransfertypes.ModuleName, splitterIBCModule)
 	ibcRouter.AddRoute(ledgermoduletypes.ModuleName, ledgerIBCModule)
 	ibcRouter.AddRoute(splittermoduletypes.ModuleName, splitterIBCModule)
 	// this line is used by starport scaffolding # ibc/app/router
