@@ -202,6 +202,34 @@ func (im IBCModule) OnChanOpenAck(
 	)
 }
 
+func (im IBCModule) UpdateEndpointChainID(ctx sdk.Context, port string, channel string) error {
+	// Packet to update the chain id
+	sp := types.SplitterPacketData{
+		Sender:  ctx.ChainID(),
+		ChainId: ctx.ChainID(),
+	}
+
+	capKey, _ := im.scopedkeeper.GetCapability(ctx, host.ChannelCapabilityPath(port, channel))
+
+	data, err_mar := sp.Marshal()
+	if err_mar != nil {
+		return err_mar
+	}
+
+	now := uint64(time.Now().UnixNano())
+
+	// TODO: Determine what the timeout shoud be
+	timeout_t := now + 6*uint64(time.Hour)
+
+	val, err := im.keeper.SendPacket(ctx, capKey, port, channel, clienttypes.Height{RevisionNumber: 0, RevisionHeight: 0}, timeout_t, data)
+	if err != nil {
+		fmt.Printf("MIDDLEWARE: error for send %v\n", err.Error())
+	}
+	fmt.Printf("MIDDLEWARE: send value %v\n", val)
+
+	return nil
+}
+
 // OnChanOpenConfirm implements the IBCModule interface
 func (im IBCModule) OnChanOpenConfirm(
 	ctx sdk.Context,
@@ -210,29 +238,7 @@ func (im IBCModule) OnChanOpenConfirm(
 ) error {
 	err := im.keeper.GetApp().OnChanOpenConfirm(ctx, portID, channelID)
 	if err == nil {
-		// Packet to update the chain id
-		sp := types.SplitterPacketData{
-			Sender:  ctx.ChainID(),
-			ChainId: ctx.ChainID(),
-		}
-
-		capKey, _ := im.scopedkeeper.GetCapability(ctx, host.ChannelCapabilityPath(portID, channelID))
-
-		data, err_mar := sp.Marshal()
-		if err_mar != nil {
-			return err_mar
-		}
-
-		now := uint64(time.Now().UnixNano())
-
-		// TODO: Determine what the timeout shoud be
-		timeout_t := now + 6*uint64(time.Hour)
-
-		val, err := im.keeper.SendPacket(ctx, capKey, portID, channelID, clienttypes.Height{RevisionNumber: 0, RevisionHeight: 0}, timeout_t, data)
-		if err != nil {
-			fmt.Printf("MIDDLEWARE: error for send %v\n", err.Error())
-		}
-		fmt.Printf("MIDDLEWARE: send value %v\n", val)
+		return im.UpdateEndpointChainID(ctx, portID, channelID)
 	}
 	return err
 }
@@ -269,6 +275,52 @@ func (im IBCModule) OnRecvPacket(
 	err := splitter_packet.Unmarshal(modulePacket.Data)
 	if err == nil {
 		fmt.Printf("MIDDLEWARE: received data: %v | %v\n", splitter_packet.ChainId, splitter_packet.Sender)
+
+		// Store the port/channel and chain id pair to the KV store
+		store := im.keeper.GetStore(ctx)
+
+		// Get the current
+		var cc_map types.ChannelChainMap
+		map_bytes := store.Get([]byte(types.ChannelChainKey))
+
+		err = cc_map.Unmarshal(map_bytes)
+		if err != nil {
+			// error
+			return nil
+		}
+
+		// Check if the channel is already accounted for
+		found := false
+		for _, v := range cc_map.Values {
+			if v.Port == modulePacket.DestinationPort && v.Channel == modulePacket.DestinationChannel {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			cc_map.Values = append(cc_map.Values, &types.ChannelChain{
+				Port:    modulePacket.DestinationPort,
+				Channel: modulePacket.DestinationChannel,
+				Chain:   splitter_packet.ChainId,
+			})
+
+			fmt.Printf("Got the map: %v\n", cc_map.Values)
+
+			map_bytes_set, err := cc_map.Marshal()
+			if err != nil {
+				// error
+				return nil
+			}
+
+			store.Set([]byte(types.ChannelChainKey), map_bytes_set)
+
+			// Send a response
+			err = im.UpdateEndpointChainID(ctx, modulePacket.SourcePort, modulePacket.SourceChannel)
+			if err != nil {
+				fmt.Printf("MIDDLEWARE: error resending: %v\n", err.Error())
+			}
+		}
 
 		// Acknowledge the packet and return
 		// return channeltypes.NewResultAcknowledgement([]byte{byte(1)})

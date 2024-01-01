@@ -5,3 +5,13 @@ option go_package = "baton/x/splitter/types";
 
 // Msg defines the Msg service.
 service Msg {}
+
+message ChannelChain {
+    string port = 1;
+    string channel = 2;
+    string chain = 3;
+}
+
+message ChannelChainMap {
+    repeated ChannelChain values = 1;
+}

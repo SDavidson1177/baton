@@ -18,6 +18,9 @@ const (
 
 	// PortID is the default port id that module binds to
 	PortID = "splitter"
+
+	// Location of channel/chain-id map
+	ChannelChainKey = "ccmap"
 )
 
 var (

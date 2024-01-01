@@ -64,6 +64,10 @@ func NewKeeper(
 	}
 }
 
+func (k Keeper) GetStore(ctx sdk.Context) storetypes.KVStore {
+	return ctx.KVStore(k.storeKey)
+}
+
 // ----------------------------------------------------------------------------
 // IBC Keeper Logic
 // ----------------------------------------------------------------------------
