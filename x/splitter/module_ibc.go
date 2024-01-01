@@ -2,6 +2,8 @@ package splitter
 
 import (
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"baton/x/splitter/keeper"
 	"baton/x/splitter/types"
@@ -10,17 +12,21 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	capabilitytypes "github.com/cosmos/cosmos-sdk/x/capability/types"
 	middlewaretypes "github.com/cosmos/ibc-go/v7/modules/apps/30-middleware/types"
+	clienttypes "github.com/cosmos/ibc-go/v7/modules/core/02-client/types"
 	channeltypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
+	host "github.com/cosmos/ibc-go/v7/modules/core/24-host"
 	ibcexported "github.com/cosmos/ibc-go/v7/modules/core/exported"
 )
 
 type IBCModule struct {
-	keeper keeper.Keeper
+	keeper       keeper.Keeper
+	scopedkeeper ibcexported.ScopedKeeper
 }
 
-func NewIBCModule(k keeper.Keeper) IBCModule {
+func NewIBCModule(k keeper.Keeper, s ibcexported.ScopedKeeper) IBCModule {
 	return IBCModule{
-		keeper: k,
+		keeper:       k,
+		scopedkeeper: s,
 	}
 }
 
@@ -202,7 +208,33 @@ func (im IBCModule) OnChanOpenConfirm(
 	portID,
 	channelID string,
 ) error {
-	return im.keeper.GetApp().OnChanOpenConfirm(ctx, portID, channelID)
+	err := im.keeper.GetApp().OnChanOpenConfirm(ctx, portID, channelID)
+	if err == nil {
+		// Packet to update the chain id
+		sp := types.SplitterPacketData{
+			Sender:  ctx.ChainID(),
+			ChainId: ctx.ChainID(),
+		}
+
+		capKey, _ := im.scopedkeeper.GetCapability(ctx, host.ChannelCapabilityPath(portID, channelID))
+
+		data, err_mar := sp.Marshal()
+		if err_mar != nil {
+			return err_mar
+		}
+
+		now := uint64(time.Now().UnixNano())
+
+		// TODO: Determine what the timeout shoud be
+		timeout_t := now + 6*uint64(time.Hour)
+
+		val, err := im.keeper.SendPacket(ctx, capKey, portID, channelID, clienttypes.Height{RevisionNumber: 0, RevisionHeight: 0}, timeout_t, data)
+		if err != nil {
+			fmt.Printf("MIDDLEWARE: error for send %v\n", err.Error())
+		}
+		fmt.Printf("MIDDLEWARE: send value %v\n", val)
+	}
+	return err
 }
 
 // OnChanCloseInit implements the IBCModule interface
@@ -230,6 +262,22 @@ func (im IBCModule) OnRecvPacket(
 	modulePacket channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) ibcexported.Acknowledgement {
+
+	fmt.Printf("MIDDLEWARE: Splitter receive\n")
+
+	var splitter_packet types.SplitterPacketData
+	err := splitter_packet.Unmarshal(modulePacket.Data)
+	if err == nil {
+		fmt.Printf("MIDDLEWARE: received data: %v | %v\n", splitter_packet.ChainId, splitter_packet.Sender)
+
+		// Acknowledge the packet and return
+		// return channeltypes.NewResultAcknowledgement([]byte{byte(1)})
+		return nil
+	} else {
+
+		// It is a transfer packet. Continue
+		fmt.Printf("MIDDLEWARE: unmarshal error: %v\n", err.Error())
+	}
 
 	// this line is used by starport scaffolding # oracle/packet/module/recv
 	return im.keeper.GetApp().OnRecvPacket(ctx, modulePacket, relayer)

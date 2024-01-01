@@ -567,12 +567,12 @@ func New(
 		app.GetSubspace(splittermoduletypes.ModuleName),
 		app.IBCKeeper.ChannelKeeper,
 		&app.IBCKeeper.PortKeeper,
-		scopedSplitterKeeper,
+		scopedTransferKeeper,
 		transferIBCModule,
 	)
 	splitterModule := splittermodule.NewAppModule(appCodec, app.SplitterKeeper, app.AccountKeeper, app.BankKeeper)
 
-	splitterIBCModule := splittermodule.NewIBCModule(app.SplitterKeeper)
+	splitterIBCModule := splittermodule.NewIBCModule(app.SplitterKeeper, scopedTransferKeeper)
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
 	/**** IBC Routing ****/
