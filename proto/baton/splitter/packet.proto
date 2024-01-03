@@ -7,3 +7,23 @@ message SplitterPacketData {
     string sender = 1;
     string chain_id = 2;
 }
+
+message MultiPacket {
+    string chain_id = 1;
+    bytes packet = 2;
+}
+
+message SplitterPacketTracker {
+    string port = 1;
+    string channel = 2;
+    uint32 amount = 3;
+    bytes packet_hash = 4;
+}
+
+message SplitterPacketWrapper {
+    string source_port = 1;
+    string source_channel = 2;
+    string dst_port = 3;
+    string dst_channel = 4;
+    bytes packet_data = 5;
+}

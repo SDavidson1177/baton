@@ -1,6 +1,7 @@
 package splitter
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -221,7 +222,7 @@ func (im IBCModule) UpdateEndpointChainID(ctx sdk.Context, port string, channel 
 	// TODO: Determine what the timeout shoud be
 	timeout_t := now + 6*uint64(time.Hour)
 
-	val, err := im.keeper.SendPacket(ctx, capKey, port, channel, clienttypes.Height{RevisionNumber: 0, RevisionHeight: 0}, timeout_t, data)
+	val, err := im.keeper.SendPacketBypass(ctx, capKey, port, channel, clienttypes.Height{RevisionNumber: 0, RevisionHeight: 0}, timeout_t, data)
 	if err != nil {
 		fmt.Printf("MIDDLEWARE: error for send %v\n", err.Error())
 	}
@@ -269,11 +270,14 @@ func (im IBCModule) OnRecvPacket(
 	relayer sdk.AccAddress,
 ) ibcexported.Acknowledgement {
 
-	fmt.Printf("MIDDLEWARE: Splitter receive\n")
+	fmt.Printf("MIDDLEWARE: Splitter receive: %v | %v\n", modulePacket.SourcePort, modulePacket.SourceChannel)
 
+	// 1. CHECK FOR SPLITTER PACKET DATA (Channel setup)
 	var splitter_packet types.SplitterPacketData
 	err := splitter_packet.Unmarshal(modulePacket.Data)
-	if err == nil {
+
+	// TODO: Unify packets to avoid this silly hack
+	if err == nil && splitter_packet.Sender != modulePacket.SourcePort {
 		fmt.Printf("MIDDLEWARE: received data: %v | %v\n", splitter_packet.ChainId, splitter_packet.Sender)
 
 		// Store the port/channel and chain id pair to the KV store
@@ -305,7 +309,7 @@ func (im IBCModule) OnRecvPacket(
 				Chain:   splitter_packet.ChainId,
 			})
 
-			fmt.Printf("Got the map: %v\n", cc_map.Values)
+			fmt.Printf("MIDDLEWARE: Got the map: %v\n", cc_map.Values)
 
 			map_bytes_set, err := cc_map.Marshal()
 			if err != nil {
@@ -325,14 +329,79 @@ func (im IBCModule) OnRecvPacket(
 		// Acknowledge the packet and return
 		// return channeltypes.NewResultAcknowledgement([]byte{byte(1)})
 		return nil
-	} else {
+	}
 
-		// It is a transfer packet. Continue
-		fmt.Printf("MIDDLEWARE: unmarshal error: %v\n", err.Error())
+	// 2. CHECK FOR SPLITTER WRAPPED PACKET
+	var data_wrapped types.SplitterPacketWrapper
+	err = data_wrapped.Unmarshal(modulePacket.Data)
+	if err == nil {
+		fmt.Printf("MIDDLEWARE: Processing tranfer packet\n")
+
+		// It is a transfer packet. Store the packet for later.
+		im.keeper.SetPortChannelStore(ctx, modulePacket.SourcePort, modulePacket.SourceChannel, modulePacket.Data)
+
+		// Increment the number of packets received
+		// Use packet hash has key.
+		store := im.keeper.GetStore(ctx)
+		hash := sha256.Sum256(modulePacket.GetData())
+
+		packet_val := store.Get(hash[:])
+		if packet_val == nil {
+			d := types.SplitterPacketTracker{
+				Port:    modulePacket.SourcePort,
+				Channel: modulePacket.SourceChannel,
+				Amount:  1,
+			}
+
+			d_bytes, err := d.Marshal()
+			if err != nil {
+				return nil
+			}
+
+			store.Set(hash[:], d_bytes)
+
+			return nil
+		}
+
+		// Update the packet tracker
+		var packet_tracker types.SplitterPacketTracker
+		err = packet_tracker.Unmarshal(packet_val)
+		if err != nil {
+			return nil
+		}
+
+		packet_tracker.Amount++
+
+		// TODO: Determine how many packets must be received
+		// Counter can only be above a certain threshold N if
+		// packet is correctly sent OR there are colluding
+		// malicious chains on N channels.
+		if packet_tracker.Amount < 2 {
+			// don't send packet yet
+			tracker_bytes, err := packet_tracker.Marshal()
+			if err == nil {
+				store.Set(hash[:], tracker_bytes)
+			}
+			return nil
+		}
+
+		packet_tracker.Amount = 0
+		tracker_bytes, err := packet_tracker.Marshal()
+		if err == nil {
+			store.Set(hash[:], tracker_bytes)
+		}
+
+		// Send the packet
+		modulePacket.Data = data_wrapped.PacketData
+		modulePacket.SourcePort = data_wrapped.SourcePort
+		modulePacket.SourceChannel = data_wrapped.SourceChannel
+		modulePacket.DestinationPort = data_wrapped.DstPort
+		modulePacket.DestinationChannel = data_wrapped.DstChannel
+		return im.keeper.GetApp().OnRecvPacket(ctx, modulePacket, relayer)
 	}
 
 	// this line is used by starport scaffolding # oracle/packet/module/recv
-	return im.keeper.GetApp().OnRecvPacket(ctx, modulePacket, relayer)
+	return nil
 }
 
 // OnAcknowledgementPacket implements the IBCModule interface

@@ -162,22 +162,26 @@ func (k Keeper) sendTransfer(
 func (k Keeper) OnRecvPacket(ctx sdk.Context, packet channeltypes.Packet, data types.FungibleTokenPacketData) error {
 	// validate packet data upon receiving
 	if err := data.ValidateBasic(); err != nil {
+		fmt.Printf("MIDDLEWARE: t1: %v | %v\n", packet.SourcePort, packet.SourceChannel)
 		return err
 	}
 
 	if !k.GetReceiveEnabled(ctx) {
+		fmt.Printf("MIDDLEWARE: t2: %v | %v\n", packet.SourcePort, packet.SourceChannel)
 		return types.ErrReceiveDisabled
 	}
 
 	// decode the receiver address
 	receiver, err := sdk.AccAddressFromBech32(data.Receiver)
 	if err != nil {
+		fmt.Printf("MIDDLEWARE: t3: %v | %v\n", packet.SourcePort, packet.SourceChannel)
 		return err
 	}
 
 	// parse the transfer amount
 	transferAmount, ok := sdk.NewIntFromString(data.Amount)
 	if !ok {
+		fmt.Printf("MIDDLEWARE: t4: %v | %v\n", packet.SourcePort, packet.SourceChannel)
 		return sdkerrors.Wrapf(types.ErrInvalidAmount, "unable to parse transfer amount (%s) into math.Int", data.Amount)
 	}
 
@@ -189,12 +193,16 @@ func (k Keeper) OnRecvPacket(ctx sdk.Context, packet channeltypes.Packet, data t
 	// This is the prefix that would have been prefixed to the denomination
 	// on sender chain IF and only if the token originally came from the
 	// receiving chain.
+
+	fmt.Printf("MIDDLEWARE: checking is source chain: %v | %v\n", packet.SourcePort, packet.SourceChannel)
 	//
 	// NOTE: We use SourcePort and SourceChannel here, because the counterparty
 	// chain would have prefixed with DestPort and DestChannel when originally
 	// receiving this coin as seen in the "sender chain is the source" condition.
 	if types.ReceiverChainIsSource(packet.GetSourcePort(), packet.GetSourceChannel(), data.Denom) {
 		// sender chain is not the source, unescrow tokens
+
+		fmt.Printf("MIDDLEWARE: Is source chain %v | %v\n", packet.SourcePort, packet.SourceChannel)
 
 		// remove prefix added by sender chain
 		voucherPrefix := types.GetDenomPrefix(packet.GetSourcePort(), packet.GetSourceChannel())
@@ -207,16 +215,19 @@ func (k Keeper) OnRecvPacket(ctx sdk.Context, packet channeltypes.Packet, data t
 		// if the denomination is not native.
 		denomTrace := types.ParseDenomTrace(unprefixedDenom)
 		if !denomTrace.IsNativeDenom() {
+			fmt.Printf("MIDDLEWARE: s1: %v | %v\n", packet.SourcePort, packet.SourceChannel)
 			denom = denomTrace.IBCDenom()
 		}
 		token := sdk.NewCoin(denom, transferAmount)
 
 		if k.bankKeeper.BlockedAddr(receiver) {
+			fmt.Printf("MIDDLEWARE: s2: %v | %v\n", packet.SourcePort, packet.SourceChannel)
 			return sdkerrors.Wrapf(sdkerrors.ErrUnauthorized, "%s is not allowed to receive funds", receiver)
 		}
 
 		escrowAddress := types.GetEscrowAddress(packet.GetDestPort(), packet.GetDestChannel())
 		if err := k.unescrowToken(ctx, escrowAddress, receiver, token); err != nil {
+			fmt.Printf("MIDDLEWARE: s3: %v | %v\n", packet.SourcePort, packet.SourceChannel)
 			return err
 		}
 
@@ -243,6 +254,8 @@ func (k Keeper) OnRecvPacket(ctx sdk.Context, packet channeltypes.Packet, data t
 
 	// sender chain is the source, mint vouchers
 
+	fmt.Printf("MIDDLEWARE: checking is dest chain: %v | %v\n", packet.SourcePort, packet.SourceChannel)
+
 	// since SendPacket did not prefix the denomination, we must prefix denomination here
 	sourcePrefix := types.GetDenomPrefix(packet.GetDestPort(), packet.GetDestChannel())
 	// NOTE: sourcePrefix contains the trailing "/"
@@ -253,6 +266,7 @@ func (k Keeper) OnRecvPacket(ctx sdk.Context, packet channeltypes.Packet, data t
 
 	traceHash := denomTrace.Hash()
 	if !k.HasDenomTrace(ctx, traceHash) {
+		fmt.Printf("MIDDLEWARE: s4: %v | %v\n", packet.SourcePort, packet.SourceChannel)
 		k.SetDenomTrace(ctx, denomTrace)
 	}
 
@@ -270,6 +284,7 @@ func (k Keeper) OnRecvPacket(ctx sdk.Context, packet channeltypes.Packet, data t
 	if err := k.bankKeeper.MintCoins(
 		ctx, types.ModuleName, sdk.NewCoins(voucher),
 	); err != nil {
+		fmt.Printf("MIDDLEWARE: s6: %v | %v\n", packet.SourcePort, packet.SourceChannel)
 		return err
 	}
 
@@ -277,8 +292,11 @@ func (k Keeper) OnRecvPacket(ctx sdk.Context, packet channeltypes.Packet, data t
 	if err := k.bankKeeper.SendCoinsFromModuleToAccount(
 		ctx, types.ModuleName, receiver, sdk.NewCoins(voucher),
 	); err != nil {
+		fmt.Printf("MIDDLEWARE: s7: %v | %v\n", packet.SourcePort, packet.SourceChannel)
 		return err
 	}
+
+	fmt.Printf("MIDDLEWARE: s9: %v | %v\n", packet.SourcePort, packet.SourceChannel)
 
 	defer func() {
 		if transferAmount.IsInt64() {

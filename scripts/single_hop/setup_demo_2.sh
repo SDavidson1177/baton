@@ -9,3 +9,11 @@ sleep 4
 rly tx connection path2
 sleep 10
 rly tx channel path2 --src-port transfer --dst-port transfer --order unordered --version "ics20-1/validators:1"
+
+rly paths new baton-1 baton-2 path3
+sleep 1
+rly tx clients path3
+sleep 4
+rly tx connection path3
+sleep 10
+rly tx channel path3 --src-port transfer --dst-port transfer --order unordered --version "ics20-1/validators:1"

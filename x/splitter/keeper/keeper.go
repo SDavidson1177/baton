@@ -64,8 +64,24 @@ func NewKeeper(
 	}
 }
 
+// Return the store for the splitter
 func (k Keeper) GetStore(ctx sdk.Context) storetypes.KVStore {
 	return ctx.KVStore(k.storeKey)
+}
+
+// Returns the value in the splitter's store for the given port and channel.
+// returns nil if no value exists.
+func (k Keeper) GetPortChannelStore(ctx sdk.Context, port string, channel string) []byte {
+	store := k.GetStore(ctx)
+	key_str := fmt.Sprintf("%s/%s", port, channel)
+	return store.Get([]byte(key_str))
+}
+
+// Sets the value in the splitter's store for the given port and channel.
+func (k Keeper) SetPortChannelStore(ctx sdk.Context, port string, channel string, val []byte) {
+	store := k.GetStore(ctx)
+	key_str := fmt.Sprintf("%s/%s", port, channel)
+	store.Set([]byte(key_str), val)
 }
 
 // ----------------------------------------------------------------------------
