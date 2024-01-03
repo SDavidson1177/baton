@@ -205,8 +205,7 @@ func (im IBCModule) OnChanOpenAck(
 
 func (im IBCModule) UpdateEndpointChainID(ctx sdk.Context, port string, channel string) error {
 	// Packet to update the chain id
-	sp := types.SplitterPacketData{
-		Sender:  ctx.ChainID(),
+	sp := types.SplitterPacket{
 		ChainId: ctx.ChainID(),
 	}
 
@@ -219,14 +218,13 @@ func (im IBCModule) UpdateEndpointChainID(ctx sdk.Context, port string, channel 
 
 	now := uint64(time.Now().UnixNano())
 
-	// TODO: Determine what the timeout shoud be
+	// TODO: Determine what the timeout should be
 	timeout_t := now + 6*uint64(time.Hour)
 
-	val, err := im.keeper.SendPacketBypass(ctx, capKey, port, channel, clienttypes.Height{RevisionNumber: 0, RevisionHeight: 0}, timeout_t, data)
+	_, err := im.keeper.SendPacketBypass(ctx, capKey, port, channel, clienttypes.Height{RevisionNumber: 0, RevisionHeight: 0}, timeout_t, data)
 	if err != nil {
-		fmt.Printf("MIDDLEWARE: error for send %v\n", err.Error())
+		fmt.Printf("error for send %v\n", err.Error())
 	}
-	fmt.Printf("MIDDLEWARE: send value %v\n", val)
 
 	return nil
 }
@@ -269,17 +267,18 @@ func (im IBCModule) OnRecvPacket(
 	modulePacket channeltypes.Packet,
 	relayer sdk.AccAddress,
 ) ibcexported.Acknowledgement {
-
-	fmt.Printf("MIDDLEWARE: Splitter receive: %v | %v\n", modulePacket.SourcePort, modulePacket.SourceChannel)
-
-	// 1. CHECK FOR SPLITTER PACKET DATA (Channel setup)
-	var splitter_packet types.SplitterPacketData
+	var splitter_packet types.SplitterPacket
 	err := splitter_packet.Unmarshal(modulePacket.Data)
 
-	// TODO: Unify packets to avoid this silly hack
-	if err == nil && splitter_packet.Sender != modulePacket.SourcePort {
-		fmt.Printf("MIDDLEWARE: received data: %v | %v\n", splitter_packet.ChainId, splitter_packet.Sender)
+	if err != nil {
+		// An error has occurred
+		fmt.Printf("cannot unmarshal splitter packet")
+		return nil
+	}
 
+	// TODO: Unify packets to avoid this silly hack
+	switch splitter_packet.Type {
+	case types.TYPE_HANDSHAKE:
 		// Store the port/channel and chain id pair to the KV store
 		store := im.keeper.GetStore(ctx)
 
@@ -290,55 +289,45 @@ func (im IBCModule) OnRecvPacket(
 		err = cc_map.Unmarshal(map_bytes)
 		if err != nil {
 			// error
+			fmt.Printf("cannot unmarshal channel chain map")
 			return nil
 		}
 
 		// Check if the channel is already accounted for
-		found := false
 		for _, v := range cc_map.Values {
 			if v.Port == modulePacket.DestinationPort && v.Channel == modulePacket.DestinationChannel {
-				found = true
-				break
+				return nil
 			}
 		}
 
-		if !found {
-			cc_map.Values = append(cc_map.Values, &types.ChannelChain{
-				Port:    modulePacket.DestinationPort,
-				Channel: modulePacket.DestinationChannel,
-				Chain:   splitter_packet.ChainId,
-			})
+		// Track endpoint info about the channel
+		cc_map.Values = append(cc_map.Values, &types.ChannelChain{
+			Port:    modulePacket.DestinationPort,
+			Channel: modulePacket.DestinationChannel,
+			Chain:   splitter_packet.ChainId,
+		})
 
-			fmt.Printf("MIDDLEWARE: Got the map: %v\n", cc_map.Values)
+		map_bytes_set, err := cc_map.Marshal()
+		if err != nil {
+			// error
+			fmt.Printf("cannot marshal channel chain map")
+			return nil
+		}
 
-			map_bytes_set, err := cc_map.Marshal()
-			if err != nil {
-				// error
-				return nil
-			}
+		store.Set([]byte(types.ChannelChainKey), map_bytes_set)
 
-			store.Set([]byte(types.ChannelChainKey), map_bytes_set)
-
-			// Send a response
-			err = im.UpdateEndpointChainID(ctx, modulePacket.SourcePort, modulePacket.SourceChannel)
-			if err != nil {
-				fmt.Printf("MIDDLEWARE: error resending: %v\n", err.Error())
-			}
+		// Send a response
+		err = im.UpdateEndpointChainID(ctx, modulePacket.SourcePort, modulePacket.SourceChannel)
+		if err != nil {
+			fmt.Printf("error resending: %v\n", err.Error())
 		}
 
 		// Acknowledge the packet and return
 		// return channeltypes.NewResultAcknowledgement([]byte{byte(1)})
 		return nil
-	}
-
-	// 2. CHECK FOR SPLITTER WRAPPED PACKET
-	var data_wrapped types.SplitterPacketWrapper
-	err = data_wrapped.Unmarshal(modulePacket.Data)
-	if err == nil {
-		fmt.Printf("MIDDLEWARE: Processing tranfer packet\n")
-
-		// It is a transfer packet. Store the packet for later.
-		im.keeper.SetPortChannelStore(ctx, modulePacket.SourcePort, modulePacket.SourceChannel, modulePacket.Data)
+	case types.TYPE_WRAPPER:
+		// TODO: Need to prevent the scenario where the same malicious channel sends the same
+		// packet over and over again to increment amount.
 
 		// Increment the number of packets received
 		// Use packet hash has key.
@@ -347,6 +336,7 @@ func (im IBCModule) OnRecvPacket(
 
 		packet_val := store.Get(hash[:])
 		if packet_val == nil {
+			// Create a new entry to track this packet
 			d := types.SplitterPacketTracker{
 				Port:    modulePacket.SourcePort,
 				Channel: modulePacket.SourceChannel,
@@ -360,6 +350,7 @@ func (im IBCModule) OnRecvPacket(
 
 			store.Set(hash[:], d_bytes)
 
+			// Do not process packet yet
 			return nil
 		}
 
@@ -370,14 +361,13 @@ func (im IBCModule) OnRecvPacket(
 			return nil
 		}
 
-		packet_tracker.Amount++
-
 		// TODO: Determine how many packets must be received
 		// Counter can only be above a certain threshold N if
 		// packet is correctly sent OR there are colluding
 		// malicious chains on N channels.
-		if packet_tracker.Amount < 2 {
+		if packet_tracker.Amount+1 < 2 {
 			// don't send packet yet
+			packet_tracker.Amount++
 			tracker_bytes, err := packet_tracker.Marshal()
 			if err == nil {
 				store.Set(hash[:], tracker_bytes)
@@ -385,6 +375,8 @@ func (im IBCModule) OnRecvPacket(
 			return nil
 		}
 
+		// Send the packet. Update amount in case packet with the same
+		// hash is sent later
 		packet_tracker.Amount = 0
 		tracker_bytes, err := packet_tracker.Marshal()
 		if err == nil {
@@ -392,11 +384,11 @@ func (im IBCModule) OnRecvPacket(
 		}
 
 		// Send the packet
-		modulePacket.Data = data_wrapped.PacketData
-		modulePacket.SourcePort = data_wrapped.SourcePort
-		modulePacket.SourceChannel = data_wrapped.SourceChannel
-		modulePacket.DestinationPort = data_wrapped.DstPort
-		modulePacket.DestinationChannel = data_wrapped.DstChannel
+		modulePacket.Data = splitter_packet.PacketData
+		modulePacket.SourcePort = splitter_packet.SourcePort
+		modulePacket.SourceChannel = splitter_packet.SourceChannel
+		modulePacket.DestinationPort = splitter_packet.DstPort
+		modulePacket.DestinationChannel = splitter_packet.DstChannel
 		return im.keeper.GetApp().OnRecvPacket(ctx, modulePacket, relayer)
 	}
 
@@ -411,6 +403,8 @@ func (im IBCModule) OnAcknowledgementPacket(
 	acknowledgement []byte,
 	relayer sdk.AccAddress,
 ) error {
+	// TODO: Fix acknowledgements
+
 	return im.keeper.GetApp().OnAcknowledgementPacket(ctx, modulePacket, acknowledgement, relayer)
 }
 

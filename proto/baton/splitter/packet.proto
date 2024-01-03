@@ -3,14 +3,23 @@ package baton.splitter;
 
 option go_package = "baton/x/splitter/types";
 
-message SplitterPacketData {
-    string sender = 1;
-    string chain_id = 2;
+import "gogoproto/gogo.proto";
+
+enum SplitterPacketType {
+    option (gogoproto.goproto_enum_prefix) = false;
+
+    TYPE_HANDSHAKE = 0;
+    TYPE_WRAPPER = 1;
 }
 
-message MultiPacket {
-    string chain_id = 1;
-    bytes packet = 2;
+message SplitterPacket {
+    SplitterPacketType type = 1;
+    string chain_id = 2;
+    string source_port = 3;
+    string source_channel = 4;
+    string dst_port = 5;
+    string dst_channel = 6;
+    bytes packet_data = 7;
 }
 
 message SplitterPacketTracker {
@@ -18,12 +27,4 @@ message SplitterPacketTracker {
     string channel = 2;
     uint32 amount = 3;
     bytes packet_hash = 4;
-}
-
-message SplitterPacketWrapper {
-    string source_port = 1;
-    string source_channel = 2;
-    string dst_port = 3;
-    string dst_channel = 4;
-    bytes packet_data = 5;
 }

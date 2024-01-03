@@ -5,6 +5,7 @@ package types
 
 import (
 	fmt "fmt"
+	_ "github.com/cosmos/gogoproto/gogoproto"
 	proto "github.com/cosmos/gogoproto/proto"
 	io "io"
 	math "math"
@@ -22,23 +23,53 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type SplitterPacketData struct {
-	Sender  string `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
-	ChainId string `protobuf:"bytes,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
+type SplitterPacketType int32
+
+const (
+	TYPE_HANDSHAKE SplitterPacketType = 0
+	TYPE_WRAPPER   SplitterPacketType = 1
+)
+
+var SplitterPacketType_name = map[int32]string{
+	0: "TYPE_HANDSHAKE",
+	1: "TYPE_WRAPPER",
 }
 
-func (m *SplitterPacketData) Reset()         { *m = SplitterPacketData{} }
-func (m *SplitterPacketData) String() string { return proto.CompactTextString(m) }
-func (*SplitterPacketData) ProtoMessage()    {}
-func (*SplitterPacketData) Descriptor() ([]byte, []int) {
+var SplitterPacketType_value = map[string]int32{
+	"TYPE_HANDSHAKE": 0,
+	"TYPE_WRAPPER":   1,
+}
+
+func (x SplitterPacketType) String() string {
+	return proto.EnumName(SplitterPacketType_name, int32(x))
+}
+
+func (SplitterPacketType) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_6e62aae9241d7efc, []int{0}
 }
-func (m *SplitterPacketData) XXX_Unmarshal(b []byte) error {
+
+type SplitterPacket struct {
+	Type          SplitterPacketType `protobuf:"varint,1,opt,name=type,proto3,enum=baton.splitter.SplitterPacketType" json:"type,omitempty"`
+	ChainId       string             `protobuf:"bytes,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
+	SourcePort    string             `protobuf:"bytes,3,opt,name=source_port,json=sourcePort,proto3" json:"source_port,omitempty"`
+	SourceChannel string             `protobuf:"bytes,4,opt,name=source_channel,json=sourceChannel,proto3" json:"source_channel,omitempty"`
+	DstPort       string             `protobuf:"bytes,5,opt,name=dst_port,json=dstPort,proto3" json:"dst_port,omitempty"`
+	DstChannel    string             `protobuf:"bytes,6,opt,name=dst_channel,json=dstChannel,proto3" json:"dst_channel,omitempty"`
+	PacketData    []byte             `protobuf:"bytes,7,opt,name=packet_data,json=packetData,proto3" json:"packet_data,omitempty"`
+}
+
+func (m *SplitterPacket) Reset()         { *m = SplitterPacket{} }
+func (m *SplitterPacket) String() string { return proto.CompactTextString(m) }
+func (*SplitterPacket) ProtoMessage()    {}
+func (*SplitterPacket) Descriptor() ([]byte, []int) {
+	return fileDescriptor_6e62aae9241d7efc, []int{0}
+}
+func (m *SplitterPacket) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SplitterPacketData) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *SplitterPacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SplitterPacketData.Marshal(b, m, deterministic)
+		return xxx_messageInfo_SplitterPacket.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -48,80 +79,63 @@ func (m *SplitterPacketData) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return b[:n], nil
 	}
 }
-func (m *SplitterPacketData) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SplitterPacketData.Merge(m, src)
+func (m *SplitterPacket) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SplitterPacket.Merge(m, src)
 }
-func (m *SplitterPacketData) XXX_Size() int {
+func (m *SplitterPacket) XXX_Size() int {
 	return m.Size()
 }
-func (m *SplitterPacketData) XXX_DiscardUnknown() {
-	xxx_messageInfo_SplitterPacketData.DiscardUnknown(m)
+func (m *SplitterPacket) XXX_DiscardUnknown() {
+	xxx_messageInfo_SplitterPacket.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SplitterPacketData proto.InternalMessageInfo
+var xxx_messageInfo_SplitterPacket proto.InternalMessageInfo
 
-func (m *SplitterPacketData) GetSender() string {
+func (m *SplitterPacket) GetType() SplitterPacketType {
 	if m != nil {
-		return m.Sender
+		return m.Type
 	}
-	return ""
+	return TYPE_HANDSHAKE
 }
 
-func (m *SplitterPacketData) GetChainId() string {
+func (m *SplitterPacket) GetChainId() string {
 	if m != nil {
 		return m.ChainId
 	}
 	return ""
 }
 
-type MultiPacket struct {
-	ChainId string `protobuf:"bytes,1,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
-	Packet  []byte `protobuf:"bytes,2,opt,name=packet,proto3" json:"packet,omitempty"`
-}
-
-func (m *MultiPacket) Reset()         { *m = MultiPacket{} }
-func (m *MultiPacket) String() string { return proto.CompactTextString(m) }
-func (*MultiPacket) ProtoMessage()    {}
-func (*MultiPacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6e62aae9241d7efc, []int{1}
-}
-func (m *MultiPacket) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *MultiPacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_MultiPacket.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *MultiPacket) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MultiPacket.Merge(m, src)
-}
-func (m *MultiPacket) XXX_Size() int {
-	return m.Size()
-}
-func (m *MultiPacket) XXX_DiscardUnknown() {
-	xxx_messageInfo_MultiPacket.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_MultiPacket proto.InternalMessageInfo
-
-func (m *MultiPacket) GetChainId() string {
+func (m *SplitterPacket) GetSourcePort() string {
 	if m != nil {
-		return m.ChainId
+		return m.SourcePort
 	}
 	return ""
 }
 
-func (m *MultiPacket) GetPacket() []byte {
+func (m *SplitterPacket) GetSourceChannel() string {
 	if m != nil {
-		return m.Packet
+		return m.SourceChannel
+	}
+	return ""
+}
+
+func (m *SplitterPacket) GetDstPort() string {
+	if m != nil {
+		return m.DstPort
+	}
+	return ""
+}
+
+func (m *SplitterPacket) GetDstChannel() string {
+	if m != nil {
+		return m.DstChannel
+	}
+	return ""
+}
+
+func (m *SplitterPacket) GetPacketData() []byte {
+	if m != nil {
+		return m.PacketData
 	}
 	return nil
 }
@@ -137,7 +151,7 @@ func (m *SplitterPacketTracker) Reset()         { *m = SplitterPacketTracker{} }
 func (m *SplitterPacketTracker) String() string { return proto.CompactTextString(m) }
 func (*SplitterPacketTracker) ProtoMessage()    {}
 func (*SplitterPacketTracker) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6e62aae9241d7efc, []int{2}
+	return fileDescriptor_6e62aae9241d7efc, []int{1}
 }
 func (m *SplitterPacketTracker) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -194,118 +208,44 @@ func (m *SplitterPacketTracker) GetPacketHash() []byte {
 	return nil
 }
 
-type SplitterPacketWrapper struct {
-	SourcePort    string `protobuf:"bytes,1,opt,name=source_port,json=sourcePort,proto3" json:"source_port,omitempty"`
-	SourceChannel string `protobuf:"bytes,2,opt,name=source_channel,json=sourceChannel,proto3" json:"source_channel,omitempty"`
-	DstPort       string `protobuf:"bytes,3,opt,name=dst_port,json=dstPort,proto3" json:"dst_port,omitempty"`
-	DstChannel    string `protobuf:"bytes,4,opt,name=dst_channel,json=dstChannel,proto3" json:"dst_channel,omitempty"`
-	PacketData    []byte `protobuf:"bytes,5,opt,name=packet_data,json=packetData,proto3" json:"packet_data,omitempty"`
-}
-
-func (m *SplitterPacketWrapper) Reset()         { *m = SplitterPacketWrapper{} }
-func (m *SplitterPacketWrapper) String() string { return proto.CompactTextString(m) }
-func (*SplitterPacketWrapper) ProtoMessage()    {}
-func (*SplitterPacketWrapper) Descriptor() ([]byte, []int) {
-	return fileDescriptor_6e62aae9241d7efc, []int{3}
-}
-func (m *SplitterPacketWrapper) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *SplitterPacketWrapper) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_SplitterPacketWrapper.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *SplitterPacketWrapper) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SplitterPacketWrapper.Merge(m, src)
-}
-func (m *SplitterPacketWrapper) XXX_Size() int {
-	return m.Size()
-}
-func (m *SplitterPacketWrapper) XXX_DiscardUnknown() {
-	xxx_messageInfo_SplitterPacketWrapper.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_SplitterPacketWrapper proto.InternalMessageInfo
-
-func (m *SplitterPacketWrapper) GetSourcePort() string {
-	if m != nil {
-		return m.SourcePort
-	}
-	return ""
-}
-
-func (m *SplitterPacketWrapper) GetSourceChannel() string {
-	if m != nil {
-		return m.SourceChannel
-	}
-	return ""
-}
-
-func (m *SplitterPacketWrapper) GetDstPort() string {
-	if m != nil {
-		return m.DstPort
-	}
-	return ""
-}
-
-func (m *SplitterPacketWrapper) GetDstChannel() string {
-	if m != nil {
-		return m.DstChannel
-	}
-	return ""
-}
-
-func (m *SplitterPacketWrapper) GetPacketData() []byte {
-	if m != nil {
-		return m.PacketData
-	}
-	return nil
-}
-
 func init() {
-	proto.RegisterType((*SplitterPacketData)(nil), "baton.splitter.SplitterPacketData")
-	proto.RegisterType((*MultiPacket)(nil), "baton.splitter.MultiPacket")
+	proto.RegisterEnum("baton.splitter.SplitterPacketType", SplitterPacketType_name, SplitterPacketType_value)
+	proto.RegisterType((*SplitterPacket)(nil), "baton.splitter.SplitterPacket")
 	proto.RegisterType((*SplitterPacketTracker)(nil), "baton.splitter.SplitterPacketTracker")
-	proto.RegisterType((*SplitterPacketWrapper)(nil), "baton.splitter.SplitterPacketWrapper")
 }
 
 func init() { proto.RegisterFile("baton/splitter/packet.proto", fileDescriptor_6e62aae9241d7efc) }
 
 var fileDescriptor_6e62aae9241d7efc = []byte{
-	// 339 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x5c, 0x92, 0xdf, 0x4a, 0x02, 0x41,
-	0x14, 0xc6, 0x9d, 0x34, 0xb3, 0x63, 0x7a, 0x31, 0x90, 0xac, 0x04, 0xab, 0x2c, 0x04, 0x5e, 0x69,
-	0xd0, 0x0b, 0x44, 0x05, 0xd5, 0x45, 0x20, 0x16, 0x04, 0xdd, 0xc8, 0xe8, 0x0c, 0xec, 0x92, 0xed,
-	0x0c, 0x33, 0x47, 0xa8, 0x9b, 0x9e, 0xa1, 0x07, 0xea, 0x01, 0xba, 0xf4, 0xb2, 0xcb, 0xd0, 0x17,
-	0x89, 0xf9, 0x23, 0xee, 0x76, 0xb5, 0xf3, 0x9d, 0xf3, 0x9d, 0xef, 0xfc, 0x60, 0x0f, 0x9c, 0xcc,
-	0x18, 0xca, 0x7c, 0x64, 0xd4, 0x22, 0x43, 0x14, 0x7a, 0xa4, 0xd8, 0xfc, 0x45, 0xe0, 0x50, 0x69,
-	0x89, 0x92, 0xb6, 0x5d, 0x73, 0xb8, 0x6d, 0x26, 0x37, 0x40, 0x1f, 0xc2, 0x7b, 0xec, 0x7c, 0xd7,
-	0x0c, 0x19, 0xed, 0x40, 0xdd, 0x88, 0x9c, 0x0b, 0x1d, 0x91, 0x3e, 0x19, 0x1c, 0x4e, 0x82, 0xa2,
-	0x5d, 0x68, 0xcc, 0x53, 0x96, 0xe5, 0xd3, 0x8c, 0x47, 0x7b, 0xae, 0x73, 0xe0, 0xf4, 0x1d, 0x4f,
-	0x2e, 0xa0, 0x79, 0xbf, 0x5c, 0x60, 0xe6, 0x53, 0x4a, 0x4e, 0x52, 0x72, 0xda, 0x70, 0x8f, 0xe4,
-	0x22, 0x8e, 0x26, 0x41, 0x25, 0x1f, 0x70, 0x5c, 0x46, 0x79, 0xd4, 0xf6, 0xa3, 0x29, 0x85, 0x9a,
-	0x92, 0x1a, 0x43, 0x8e, 0x7b, 0xd3, 0x08, 0x6c, 0x5e, 0x9e, 0x8b, 0x45, 0x01, 0xc4, 0x4a, 0x1b,
-	0xcf, 0x5e, 0xe5, 0x32, 0xc7, 0xa8, 0xda, 0x27, 0x83, 0xd6, 0x24, 0x28, 0xda, 0x83, 0xa6, 0x5f,
-	0x34, 0x4d, 0x99, 0x49, 0xa3, 0x9a, 0xdb, 0x0d, 0xbe, 0x74, 0xcb, 0x4c, 0x9a, 0x7c, 0x91, 0xff,
-	0x00, 0x4f, 0x9a, 0x29, 0x25, 0xb4, 0x1d, 0x35, 0x72, 0xa9, 0xe7, 0x62, 0x5a, 0xe0, 0x00, 0x5f,
-	0x1a, 0x5b, 0x9a, 0x53, 0x68, 0x07, 0x43, 0x19, 0xaa, 0xe5, 0xab, 0x57, 0x01, 0xad, 0x0b, 0x0d,
-	0x6e, 0xd0, 0x87, 0x54, 0x3d, 0x35, 0x37, 0xe8, 0x12, 0x7a, 0xd0, 0xb4, 0xad, 0xed, 0x78, 0xcd,
-	0xaf, 0xe0, 0x06, 0xb7, 0xb3, 0x3b, 0x7c, 0xce, 0x90, 0x45, 0xfb, 0x45, 0x7c, 0xfb, 0xcf, 0x2e,
-	0xcf, 0xbe, 0xd7, 0x31, 0x59, 0xad, 0x63, 0xf2, 0xbb, 0x8e, 0xc9, 0xe7, 0x26, 0xae, 0xac, 0x36,
-	0x71, 0xe5, 0x67, 0x13, 0x57, 0x9e, 0x3b, 0xfe, 0x20, 0xde, 0x76, 0x27, 0x81, 0xef, 0x4a, 0x98,
-	0x59, 0xdd, 0x9d, 0xc4, 0xf9, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xf6, 0x39, 0xe4, 0x95, 0x31,
-	0x02, 0x00, 0x00,
+	// 386 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x64, 0x92, 0x41, 0x6b, 0xe2, 0x40,
+	0x14, 0xc7, 0x33, 0x6e, 0x56, 0x77, 0x9f, 0x1a, 0x64, 0xd8, 0x95, 0xac, 0x0b, 0x51, 0x84, 0x05,
+	0xd9, 0x43, 0x5c, 0x76, 0x61, 0xcf, 0xb5, 0x55, 0xb0, 0x14, 0x4a, 0x88, 0x42, 0x69, 0x2f, 0x61,
+	0x4c, 0x82, 0x91, 0xda, 0x4c, 0xc8, 0x8c, 0x50, 0x2f, 0x3d, 0x7b, 0xec, 0x77, 0xe8, 0x97, 0xe9,
+	0xd1, 0x63, 0x8f, 0x45, 0xbf, 0x48, 0xc9, 0x1b, 0x53, 0x6b, 0x7b, 0xca, 0xcc, 0xff, 0xff, 0x7f,
+	0xef, 0xc7, 0x9b, 0x3c, 0xf8, 0x39, 0x61, 0x92, 0xc7, 0x5d, 0x91, 0xcc, 0x67, 0x52, 0x86, 0x69,
+	0x37, 0x61, 0xfe, 0x75, 0x28, 0xed, 0x24, 0xe5, 0x92, 0x53, 0x03, 0x4d, 0x3b, 0x37, 0x1b, 0xdf,
+	0xa6, 0x7c, 0xca, 0xd1, 0xea, 0x66, 0x27, 0x95, 0x6a, 0xaf, 0x0a, 0x60, 0x8c, 0x76, 0x11, 0x07,
+	0xcb, 0xe9, 0x7f, 0xd0, 0xe5, 0x32, 0x09, 0x4d, 0xd2, 0x22, 0x1d, 0xe3, 0x6f, 0xdb, 0x3e, 0xec,
+	0x63, 0x1f, 0xa6, 0xc7, 0xcb, 0x24, 0x74, 0x31, 0x4f, 0x7f, 0xc0, 0x17, 0x3f, 0x62, 0xb3, 0xd8,
+	0x9b, 0x05, 0x66, 0xa1, 0x45, 0x3a, 0x5f, 0xdd, 0x12, 0xde, 0x4f, 0x03, 0xda, 0x84, 0xb2, 0xe0,
+	0x8b, 0xd4, 0x0f, 0xbd, 0x84, 0xa7, 0xd2, 0xfc, 0x84, 0x2e, 0x28, 0xc9, 0xe1, 0xa9, 0xa4, 0xbf,
+	0xc0, 0xd8, 0x05, 0xfc, 0x88, 0xc5, 0x71, 0x38, 0x37, 0x75, 0xcc, 0x54, 0x95, 0x7a, 0xa2, 0xc4,
+	0x0c, 0x11, 0x08, 0xa9, 0x9a, 0x7c, 0x56, 0x88, 0x40, 0x48, 0xec, 0xd0, 0x84, 0x72, 0x66, 0xe5,
+	0xe5, 0x45, 0x85, 0x08, 0x84, 0xcc, 0x6b, 0x9b, 0x50, 0x56, 0xef, 0xe3, 0x05, 0x4c, 0x32, 0xb3,
+	0xd4, 0x22, 0x9d, 0x8a, 0x0b, 0x4a, 0xea, 0x33, 0xc9, 0xda, 0x77, 0xf0, 0xfd, 0xdd, 0x6c, 0x69,
+	0xf6, 0x49, 0x29, 0x05, 0x1d, 0x89, 0x04, 0x7b, 0xe2, 0x99, 0x9a, 0x50, 0xca, 0x51, 0xfb, 0x59,
+	0x91, 0x53, 0x87, 0x22, 0xbb, 0xe1, 0x8b, 0x58, 0x8d, 0x59, 0x75, 0x77, 0xb7, 0x37, 0xfc, 0x88,
+	0x89, 0x08, 0xe7, 0x7b, 0xe5, 0x0f, 0x99, 0x88, 0x7e, 0x1f, 0x01, 0xfd, 0xf8, 0xb6, 0x94, 0x82,
+	0x31, 0xbe, 0x74, 0x06, 0xde, 0xb0, 0x77, 0xde, 0x1f, 0x0d, 0x7b, 0x67, 0x83, 0x9a, 0x46, 0x6b,
+	0x50, 0x41, 0xed, 0xc2, 0xed, 0x39, 0xce, 0xc0, 0xad, 0x91, 0x86, 0xbe, 0x7a, 0xb0, 0xb4, 0xe3,
+	0x3f, 0x8f, 0x1b, 0x8b, 0xac, 0x37, 0x16, 0x79, 0xde, 0x58, 0xe4, 0x7e, 0x6b, 0x69, 0xeb, 0xad,
+	0xa5, 0x3d, 0x6d, 0x2d, 0xed, 0xaa, 0xae, 0x36, 0xe5, 0x76, 0xbf, 0x2b, 0xd9, 0x2f, 0x13, 0x93,
+	0x22, 0x6e, 0xc1, 0xbf, 0x97, 0x00, 0x00, 0x00, 0xff, 0xff, 0x6a, 0x3b, 0x69, 0x15, 0x4a, 0x02,
+	0x00, 0x00,
 }
 
-func (m *SplitterPacketData) Marshal() (dAtA []byte, err error) {
+func (m *SplitterPacket) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -315,16 +255,51 @@ func (m *SplitterPacketData) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SplitterPacketData) MarshalTo(dAtA []byte) (int, error) {
+func (m *SplitterPacket) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SplitterPacketData) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SplitterPacket) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
+	if len(m.PacketData) > 0 {
+		i -= len(m.PacketData)
+		copy(dAtA[i:], m.PacketData)
+		i = encodeVarintPacket(dAtA, i, uint64(len(m.PacketData)))
+		i--
+		dAtA[i] = 0x3a
+	}
+	if len(m.DstChannel) > 0 {
+		i -= len(m.DstChannel)
+		copy(dAtA[i:], m.DstChannel)
+		i = encodeVarintPacket(dAtA, i, uint64(len(m.DstChannel)))
+		i--
+		dAtA[i] = 0x32
+	}
+	if len(m.DstPort) > 0 {
+		i -= len(m.DstPort)
+		copy(dAtA[i:], m.DstPort)
+		i = encodeVarintPacket(dAtA, i, uint64(len(m.DstPort)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if len(m.SourceChannel) > 0 {
+		i -= len(m.SourceChannel)
+		copy(dAtA[i:], m.SourceChannel)
+		i = encodeVarintPacket(dAtA, i, uint64(len(m.SourceChannel)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.SourcePort) > 0 {
+		i -= len(m.SourcePort)
+		copy(dAtA[i:], m.SourcePort)
+		i = encodeVarintPacket(dAtA, i, uint64(len(m.SourcePort)))
+		i--
+		dAtA[i] = 0x1a
+	}
 	if len(m.ChainId) > 0 {
 		i -= len(m.ChainId)
 		copy(dAtA[i:], m.ChainId)
@@ -332,49 +307,10 @@ func (m *SplitterPacketData) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x12
 	}
-	if len(m.Sender) > 0 {
-		i -= len(m.Sender)
-		copy(dAtA[i:], m.Sender)
-		i = encodeVarintPacket(dAtA, i, uint64(len(m.Sender)))
+	if m.Type != 0 {
+		i = encodeVarintPacket(dAtA, i, uint64(m.Type))
 		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *MultiPacket) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *MultiPacket) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *MultiPacket) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Packet) > 0 {
-		i -= len(m.Packet)
-		copy(dAtA[i:], m.Packet)
-		i = encodeVarintPacket(dAtA, i, uint64(len(m.Packet)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.ChainId) > 0 {
-		i -= len(m.ChainId)
-		copy(dAtA[i:], m.ChainId)
-		i = encodeVarintPacket(dAtA, i, uint64(len(m.ChainId)))
-		i--
-		dAtA[i] = 0xa
+		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
@@ -428,64 +364,6 @@ func (m *SplitterPacketTracker) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *SplitterPacketWrapper) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *SplitterPacketWrapper) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SplitterPacketWrapper) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.PacketData) > 0 {
-		i -= len(m.PacketData)
-		copy(dAtA[i:], m.PacketData)
-		i = encodeVarintPacket(dAtA, i, uint64(len(m.PacketData)))
-		i--
-		dAtA[i] = 0x2a
-	}
-	if len(m.DstChannel) > 0 {
-		i -= len(m.DstChannel)
-		copy(dAtA[i:], m.DstChannel)
-		i = encodeVarintPacket(dAtA, i, uint64(len(m.DstChannel)))
-		i--
-		dAtA[i] = 0x22
-	}
-	if len(m.DstPort) > 0 {
-		i -= len(m.DstPort)
-		copy(dAtA[i:], m.DstPort)
-		i = encodeVarintPacket(dAtA, i, uint64(len(m.DstPort)))
-		i--
-		dAtA[i] = 0x1a
-	}
-	if len(m.SourceChannel) > 0 {
-		i -= len(m.SourceChannel)
-		copy(dAtA[i:], m.SourceChannel)
-		i = encodeVarintPacket(dAtA, i, uint64(len(m.SourceChannel)))
-		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.SourcePort) > 0 {
-		i -= len(m.SourcePort)
-		copy(dAtA[i:], m.SourcePort)
-		i = encodeVarintPacket(dAtA, i, uint64(len(m.SourcePort)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
 func encodeVarintPacket(dAtA []byte, offset int, v uint64) int {
 	offset -= sovPacket(v)
 	base := offset
@@ -497,34 +375,36 @@ func encodeVarintPacket(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *SplitterPacketData) Size() (n int) {
+func (m *SplitterPacket) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	l = len(m.Sender)
-	if l > 0 {
-		n += 1 + l + sovPacket(uint64(l))
+	if m.Type != 0 {
+		n += 1 + sovPacket(uint64(m.Type))
 	}
 	l = len(m.ChainId)
 	if l > 0 {
 		n += 1 + l + sovPacket(uint64(l))
 	}
-	return n
-}
-
-func (m *MultiPacket) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.ChainId)
+	l = len(m.SourcePort)
 	if l > 0 {
 		n += 1 + l + sovPacket(uint64(l))
 	}
-	l = len(m.Packet)
+	l = len(m.SourceChannel)
+	if l > 0 {
+		n += 1 + l + sovPacket(uint64(l))
+	}
+	l = len(m.DstPort)
+	if l > 0 {
+		n += 1 + l + sovPacket(uint64(l))
+	}
+	l = len(m.DstChannel)
+	if l > 0 {
+		n += 1 + l + sovPacket(uint64(l))
+	}
+	l = len(m.PacketData)
 	if l > 0 {
 		n += 1 + l + sovPacket(uint64(l))
 	}
@@ -555,42 +435,13 @@ func (m *SplitterPacketTracker) Size() (n int) {
 	return n
 }
 
-func (m *SplitterPacketWrapper) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.SourcePort)
-	if l > 0 {
-		n += 1 + l + sovPacket(uint64(l))
-	}
-	l = len(m.SourceChannel)
-	if l > 0 {
-		n += 1 + l + sovPacket(uint64(l))
-	}
-	l = len(m.DstPort)
-	if l > 0 {
-		n += 1 + l + sovPacket(uint64(l))
-	}
-	l = len(m.DstChannel)
-	if l > 0 {
-		n += 1 + l + sovPacket(uint64(l))
-	}
-	l = len(m.PacketData)
-	if l > 0 {
-		n += 1 + l + sovPacket(uint64(l))
-	}
-	return n
-}
-
 func sovPacket(x uint64) (n int) {
 	return (math_bits.Len64(x|1) + 6) / 7
 }
 func sozPacket(x uint64) (n int) {
 	return sovPacket(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *SplitterPacketData) Unmarshal(dAtA []byte) error {
+func (m *SplitterPacket) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -613,17 +464,17 @@ func (m *SplitterPacketData) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SplitterPacketData: wiretype end group for non-group")
+			return fmt.Errorf("proto: SplitterPacket: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SplitterPacketData: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: SplitterPacket: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Sender", wireType)
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
 			}
-			var stringLen uint64
+			m.Type = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowPacket
@@ -633,24 +484,11 @@ func (m *SplitterPacketData) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
+				m.Type |= SplitterPacketType(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPacket
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPacket
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Sender = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ChainId", wireType)
@@ -683,59 +521,9 @@ func (m *SplitterPacketData) Unmarshal(dAtA []byte) error {
 			}
 			m.ChainId = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipPacket(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthPacket
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *MultiPacket) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowPacket
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: MultiPacket: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MultiPacket: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
+		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ChainId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field SourcePort", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -763,11 +551,107 @@ func (m *MultiPacket) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.ChainId = string(dAtA[iNdEx:postIndex])
+			m.SourcePort = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 2:
+		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Packet", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field SourceChannel", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPacket
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthPacket
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthPacket
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SourceChannel = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DstPort", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPacket
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthPacket
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthPacket
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DstPort = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DstChannel", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowPacket
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthPacket
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthPacket
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DstChannel = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PacketData", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -794,9 +678,9 @@ func (m *MultiPacket) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Packet = append(m.Packet[:0], dAtA[iNdEx:postIndex]...)
-			if m.Packet == nil {
-				m.Packet = []byte{}
+			m.PacketData = append(m.PacketData[:0], dAtA[iNdEx:postIndex]...)
+			if m.PacketData == nil {
+				m.PacketData = []byte{}
 			}
 			iNdEx = postIndex
 		default:
@@ -964,218 +848,6 @@ func (m *SplitterPacketTracker) Unmarshal(dAtA []byte) error {
 			m.PacketHash = append(m.PacketHash[:0], dAtA[iNdEx:postIndex]...)
 			if m.PacketHash == nil {
 				m.PacketHash = []byte{}
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipPacket(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthPacket
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *SplitterPacketWrapper) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowPacket
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: SplitterPacketWrapper: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SplitterPacketWrapper: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SourcePort", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPacket
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPacket
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPacket
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.SourcePort = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 2:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field SourceChannel", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPacket
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPacket
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPacket
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.SourceChannel = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field DstPort", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPacket
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPacket
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPacket
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.DstPort = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field DstChannel", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPacket
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthPacket
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPacket
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.DstChannel = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PacketData", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowPacket
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return ErrInvalidLengthPacket
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return ErrInvalidLengthPacket
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.PacketData = append(m.PacketData[:0], dAtA[iNdEx:postIndex]...)
-			if m.PacketData == nil {
-				m.PacketData = []byte{}
 			}
 			iNdEx = postIndex
 		default:

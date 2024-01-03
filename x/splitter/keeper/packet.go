@@ -20,10 +20,14 @@ func (k Keeper) SendPacket(
 	timeoutTimestamp uint64,
 	data []byte,
 ) (uint64, error) {
-	channel, _ := k.channelKeeper.GetChannel(ctx, sourcePort, sourceChannel)
+	channel, found := k.channelKeeper.GetChannel(ctx, sourcePort, sourceChannel)
+	if !found {
+		return 0, fmt.Errorf("cannot find channel with port and channel: %v/%v", sourcePort, sourceChannel)
+	}
 
 	// Wrap the data
-	wrapped_data := types.SplitterPacketWrapper{
+	wrapped_data := types.SplitterPacket{
+		Type:          types.TYPE_WRAPPER,
 		SourcePort:    sourcePort,
 		SourceChannel: sourceChannel,
 		DstPort:       channel.Counterparty.PortId,
@@ -49,14 +53,13 @@ func (k Keeper) SendPacket(
 	}
 
 	// Check if the channel is already accounted for
-	found := false
-	var cc types.ChannelChain
+	found = false
+	var cc string
 
 	for _, v := range cc_map.Values {
-		fmt.Printf("MIDDLEWARE: found value: %v\n", v)
 		if v.Port == sourcePort && v.Channel == sourceChannel {
 			found = true
-			cc = *v
+			cc = v.Chain
 			break
 		}
 	}
@@ -64,8 +67,7 @@ func (k Keeper) SendPacket(
 	// Send on all channels
 	if found {
 		for _, v := range cc_map.Values {
-			if v.Chain == cc.Chain {
-				fmt.Printf("MIDDLEWARE: Send value: %v\n", v)
+			if v.Chain == cc {
 				cap, f := k.scopedKeeper.GetCapability(ctx, host.ChannelCapabilityPath(v.Port, v.Channel))
 				if f {
 					k.channelKeeper.SendPacket(ctx, cap, v.Port, v.Channel, timeoutHeight, timeoutTimestamp, wrapped_data_bytes)
@@ -74,6 +76,7 @@ func (k Keeper) SendPacket(
 		}
 	}
 
+	// default ack
 	return 1, nil
 }
 
