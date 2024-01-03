@@ -116,6 +116,10 @@ import (
 	ledgermodule "baton/x/ledger"
 	ledgermodulekeeper "baton/x/ledger/keeper"
 	ledgermoduletypes "baton/x/ledger/types"
+	splittermodule "baton/x/splitter"
+	splittermodulekeeper "baton/x/splitter/keeper"
+	splittermoduletypes "baton/x/splitter/types"
+
 	// this line is used by starport scaffolding # stargate/app/moduleImport
 
 	appparams "baton/app/params"
@@ -178,6 +182,7 @@ var (
 		consensus.AppModuleBasic{},
 		batonmodule.AppModuleBasic{},
 		ledgermodule.AppModuleBasic{},
+		splittermodule.AppModuleBasic{},
 		// this line is used by starport scaffolding # stargate/app/moduleBasic
 	)
 
@@ -254,9 +259,11 @@ type App struct {
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
 	ScopedICAHostKeeper  capabilitykeeper.ScopedKeeper
 
-	BatonKeeper        batonmodulekeeper.Keeper
-	ScopedLedgerKeeper capabilitykeeper.ScopedKeeper
-	LedgerKeeper       ledgermodulekeeper.Keeper
+	BatonKeeper          batonmodulekeeper.Keeper
+	ScopedLedgerKeeper   capabilitykeeper.ScopedKeeper
+	LedgerKeeper         ledgermodulekeeper.Keeper
+	ScopedSplitterKeeper capabilitykeeper.ScopedKeeper
+	SplitterKeeper       splittermodulekeeper.Keeper
 	// this line is used by starport scaffolding # stargate/app/keeperDeclaration
 
 	// mm is the module manager
@@ -305,6 +312,7 @@ func New(
 		capabilitytypes.StoreKey, group.StoreKey, icacontrollertypes.StoreKey, consensusparamtypes.StoreKey,
 		batonmoduletypes.StoreKey,
 		ledgermoduletypes.StoreKey,
+		splittermoduletypes.StoreKey,
 		// this line is used by starport scaffolding # stargate/app/storeKey
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
@@ -461,7 +469,7 @@ func New(
 		appCodec,
 		keys[ibctransfertypes.StoreKey],
 		app.GetSubspace(ibctransfertypes.ModuleName),
-		app.IBCKeeper.ChannelKeeper,
+		&app.SplitterKeeper,
 		app.IBCKeeper.ChannelKeeper,
 		&app.IBCKeeper.PortKeeper,
 		app.AccountKeeper,
@@ -550,6 +558,21 @@ func New(
 	ledgerModule := ledgermodule.NewAppModule(appCodec, app.LedgerKeeper, app.AccountKeeper, app.BankKeeper)
 
 	ledgerIBCModule := ledgermodule.NewIBCModule(app.LedgerKeeper)
+	scopedSplitterKeeper := app.CapabilityKeeper.ScopeToModule(splittermoduletypes.ModuleName)
+	app.ScopedSplitterKeeper = scopedSplitterKeeper
+	app.SplitterKeeper = *splittermodulekeeper.NewKeeper(
+		appCodec,
+		keys[splittermoduletypes.StoreKey],
+		keys[splittermoduletypes.MemStoreKey],
+		app.GetSubspace(splittermoduletypes.ModuleName),
+		app.IBCKeeper.ChannelKeeper,
+		&app.IBCKeeper.PortKeeper,
+		scopedTransferKeeper,
+		transferIBCModule,
+	)
+	splitterModule := splittermodule.NewAppModule(appCodec, app.SplitterKeeper, app.AccountKeeper, app.BankKeeper)
+
+	splitterIBCModule := splittermodule.NewIBCModule(app.SplitterKeeper, scopedTransferKeeper)
 	// this line is used by starport scaffolding # stargate/app/keeperDefinition
 
 	/**** IBC Routing ****/
@@ -560,8 +583,9 @@ func New(
 	// Create static IBC router, add transfer route, then set and seal it
 	ibcRouter := ibcporttypes.NewRouter()
 	ibcRouter.AddRoute(icahosttypes.SubModuleName, icaHostIBCModule).
-		AddRoute(ibctransfertypes.ModuleName, transferIBCModule)
+		AddRoute(ibctransfertypes.ModuleName, splitterIBCModule)
 	ibcRouter.AddRoute(ledgermoduletypes.ModuleName, ledgerIBCModule)
+	ibcRouter.AddRoute(splittermoduletypes.ModuleName, splitterIBCModule)
 	// this line is used by starport scaffolding # ibc/app/router
 	app.IBCKeeper.SetRouter(ibcRouter)
 
@@ -614,6 +638,7 @@ func New(
 		icaModule,
 		batonModule,
 		ledgerModule,
+		splitterModule,
 		// this line is used by starport scaffolding # stargate/app/appModule
 
 		crisis.NewAppModule(app.CrisisKeeper, skipGenesisInvariants, app.GetSubspace(crisistypes.ModuleName)), // always be last to make sure that it checks for all invariants and not only part of them
@@ -648,6 +673,7 @@ func New(
 		consensusparamtypes.ModuleName,
 		batonmoduletypes.ModuleName,
 		ledgermoduletypes.ModuleName,
+		splittermoduletypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/beginBlockers
 	)
 
@@ -675,6 +701,7 @@ func New(
 		consensusparamtypes.ModuleName,
 		batonmoduletypes.ModuleName,
 		ledgermoduletypes.ModuleName,
+		splittermoduletypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/endBlockers
 	)
 
@@ -707,6 +734,7 @@ func New(
 		consensusparamtypes.ModuleName,
 		batonmoduletypes.ModuleName,
 		ledgermoduletypes.ModuleName,
+		splittermoduletypes.ModuleName,
 		// this line is used by starport scaffolding # stargate/app/initGenesis
 	}
 	app.mm.SetOrderInitGenesis(genesisModuleOrder...)
@@ -933,6 +961,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(icahosttypes.SubModuleName)
 	paramsKeeper.Subspace(batonmoduletypes.ModuleName)
 	paramsKeeper.Subspace(ledgermoduletypes.ModuleName)
+	paramsKeeper.Subspace(splittermoduletypes.ModuleName)
 	// this line is used by starport scaffolding # stargate/app/paramSubspace
 
 	return paramsKeeper

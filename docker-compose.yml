@@ -6,10 +6,6 @@ services:
     storage_opt:
       size: '5G'
     build: .
-    # ports:
-    #   - "26656-26657:26656-26657"
-    # volumes:
-    #   - ./build/chain0/evmosd:/evmos:Z
     command: ignite chain serve -v
     networks:
       baton-chain-net:
@@ -20,10 +16,6 @@ services:
     storage_opt:
       size: '5G'
     build: .
-    # ports:
-    #   - "26656-26657:26656-26657"
-    # volumes:
-    #   - ./build/chain1/evmosd:/evmos:Z
     command: ignite chain serve --config config2.yml -v
     networks:
       baton-chain-net:
@@ -34,22 +26,30 @@ services:
     storage_opt:
       size: '5G'
     build: .
-    # ports:
-    #   - "26656-26657:26656-26657"
-    # volumes:
-    #   - ./build/chain1/evmosd:/evmos:Z
     command: ignite chain serve --config config3.yml -v
     networks:
       baton-chain-net:
         ipv4_address: 192.167.10.4
 
-  relayer:
-    container_name: relayer
+  relayer1:
+    container_name: relayer1
     build:
-      dockerfile: ./DockerfileRelayer
+      dockerfile: ./DockerfileRelayer1
+    volumes:
+      - ./.relayer:/root/.relayer
     networks:
       baton-chain-net:
         ipv4_address: 192.167.10.5
+
+  relayer2:
+      container_name: relayer2
+      build:
+        dockerfile: ./DockerfileRelayer2
+      volumes:
+        - ./.relayer:/root/.relayer
+      networks:
+        baton-chain-net:
+          ipv4_address: 192.167.10.6
 
 networks:
   baton-chain-net:

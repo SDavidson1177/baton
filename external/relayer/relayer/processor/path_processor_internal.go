@@ -31,6 +31,7 @@ func (pp *PathProcessor) getMessagesToSend(
 	msgs []packetIBCMessage,
 	src, dst *pathEndRuntime,
 ) (srcMsgs []packetIBCMessage, dstMsgs []packetIBCMessage) {
+
 	if len(msgs) == 0 {
 		return
 	}
@@ -103,10 +104,12 @@ func (pp *PathProcessor) getMessagesToSend(
 	for _, msg := range msgs {
 		switch msg.eventType {
 		case chantypes.EventTypeRecvPacket:
+			fmt.Printf("SEND: Source and Destination for message send: %v & %v\nMessage type %v\n", src.chainProvider.ChainId(), dst.chainProvider.ChainId(), msg.eventType)
 			if uint64(len(dstMsgs)) <= pp.maxMsgs && dst.shouldSendPacketMessage(msg, src) {
 				dstMsgs = append(dstMsgs, msg)
 			}
 		default:
+			fmt.Printf("SEND: Source and Destination for message send: %v & %v\nMessage type %v\n", src.chainProvider.ChainId(), dst.chainProvider.ChainId(), msg.eventType)
 			if uint64(len(srcMsgs)) <= pp.maxMsgs && src.shouldSendPacketMessage(msg, dst) {
 				srcMsgs = append(srcMsgs, msg)
 			}
@@ -215,6 +218,12 @@ func (pp *PathProcessor) unrelayedPacketFlowMessages(
 
 	for _, info := range pathEndPacketFlowMessages.SrcMsgTransfer {
 		deletePreInitIfMatches(info)
+
+		fmt.Printf("CACHE: Send packet still in cache: Src port %v, Src Channel %v, Dst Port %v, Dst Channel %v\n",
+			info.SourcePort, info.SourceChannel, info.DestPort, info.DestChannel)
+
+		fmt.Printf("CACHE: Src and Dst Path Ends: %v & %v\n", pathEndPacketFlowMessages.Src.chainProvider.ChainId(),
+			pathEndPacketFlowMessages.Dst.chainProvider.ChainId())
 
 		// Packet is not yet relayed! need to relay either MsgRecvPacket from src to dst, or MsgTimeout/MsgTimeoutOnClose from dst to src
 		if err := pathEndPacketFlowMessages.Dst.chainProvider.ValidatePacket(info, pathEndPacketFlowMessages.Dst.latestBlock); err != nil {
@@ -891,6 +900,7 @@ func (pp *PathProcessor) processLatestMessages(ctx context.Context, cancel func(
 		SrcMsgChannelOpenAck:     pp.pathEnd1.messageCache.ChannelHandshake[chantypes.EventTypeChannelOpenAck],
 		DstMsgChannelOpenConfirm: pp.pathEnd2.messageCache.ChannelHandshake[chantypes.EventTypeChannelOpenConfirm],
 	}
+
 	pathEnd2ChannelHandshakeMessages := pathEndChannelHandshakeMessages{
 		Src:                      pp.pathEnd2,
 		Dst:                      pp.pathEnd1,
@@ -908,6 +918,28 @@ func (pp *PathProcessor) processLatestMessages(ctx context.Context, cancel func(
 	pathEnd2ProcessRes := make([]pathEndPacketFlowResponse, len(channelPairs))
 
 	for i, pair := range channelPairs {
+		// Check that both endpoints have the appropriate channel/port pair. Otherwise, this
+		// packet is not meant for this path. Therefore, continue.
+		endpoint1_valid := false
+		endpoint2_valid := false
+		for ch_key := range pp.pathEnd1.channelStateCache {
+			if ch_key.ChannelID == pair.pathEnd1ChannelKey.ChannelID && ch_key.PortID == pair.pathEnd1ChannelKey.PortID {
+				endpoint1_valid = true
+				break
+			}
+		}
+
+		for ch_key := range pp.pathEnd2.channelStateCache {
+			if ch_key.ChannelID == pair.pathEnd2ChannelKey.ChannelID && ch_key.PortID == pair.pathEnd2ChannelKey.PortID {
+				endpoint2_valid = true
+				break
+			}
+		}
+
+		if !endpoint1_valid || !endpoint2_valid {
+			continue
+		}
+
 		// Append acks into recv packet info if present
 		pathEnd1DstMsgRecvPacket := pp.pathEnd2.messageCache.PacketFlow[pair.pathEnd2ChannelKey][chantypes.EventTypeRecvPacket]
 		for seq, ackInfo := range pp.pathEnd2.messageCache.PacketFlow[pair.pathEnd2ChannelKey][chantypes.EventTypeWriteAck] {
@@ -936,6 +968,7 @@ func (pp *PathProcessor) processLatestMessages(ctx context.Context, cancel func(
 			SrcMsgTimeout:         pp.pathEnd1.messageCache.PacketFlow[pair.pathEnd1ChannelKey][chantypes.EventTypeTimeoutPacket],
 			SrcMsgTimeoutOnClose:  pp.pathEnd1.messageCache.PacketFlow[pair.pathEnd1ChannelKey][chantypes.EventTypeTimeoutPacketOnClose],
 		}
+
 		pathEnd2PacketFlowMessages := pathEndPacketFlowMessages{
 			Src:                   pp.pathEnd2,
 			Dst:                   pp.pathEnd1,
