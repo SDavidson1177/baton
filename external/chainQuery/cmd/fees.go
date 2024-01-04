@@ -32,7 +32,7 @@ var feesCmd = &cobra.Command{
 			endpoint = endpoint + "/"
 		}
 
-		query_endpoint := fmt.Sprintf("%s%s", endpoint, "block")
+		query_endpoint := fmt.Sprintf("%s%s%v", endpoint, "block?height=", block_height)
 
 		resp, err := http.Get(query_endpoint)
 		if err != nil {
@@ -52,9 +52,7 @@ var feesCmd = &cobra.Command{
 			n, err = resp.Body.Read(tmp)
 			resp_body_bytes = append(resp_body_bytes, tmp...)
 		}
-
-		fmt.Printf("Status: %v\n", resp.Status)
-		fmt.Printf("Response: %v\n", string(resp_body_bytes))
+		fmt.Printf("%v\n", string(resp_body_bytes))
 
 		return nil
 	},
