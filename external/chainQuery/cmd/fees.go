@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"net/http"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -21,11 +22,39 @@ var feesCmd = &cobra.Command{
 		// Get the tendermint endpoint and block height
 		endpoint := args[0]
 		block_height, err := strconv.Atoi(args[1])
+		_ = block_height
 		if err != nil {
 			return fmt.Errorf("could not parse block height")
 		}
 
-		fmt.Println("fees called")
+		// Ensure there is a trailing slash for the endpoint
+		if endpoint[len(endpoint)-1] != '/' {
+			endpoint = endpoint + "/"
+		}
+
+		query_endpoint := fmt.Sprintf("%s%s", endpoint, "block")
+
+		resp, err := http.Get(query_endpoint)
+		if err != nil {
+			return err
+		}
+
+		const SIZE = 100
+
+		resp_body_bytes := make([]byte, SIZE)
+		n, err := resp.Body.Read(resp_body_bytes)
+		for n == SIZE {
+			if err != nil {
+				return err
+			}
+
+			tmp := make([]byte, SIZE)
+			n, err = resp.Body.Read(tmp)
+			resp_body_bytes = append(resp_body_bytes, tmp...)
+		}
+
+		fmt.Printf("Status: %v\n", resp.Status)
+		fmt.Printf("Response: %v\n", string(resp_body_bytes))
 
 		return nil
 	},
