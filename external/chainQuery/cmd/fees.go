@@ -4,10 +4,13 @@ Copyright © 2024 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
+	"github.com/SDavidson1177/chainQuery/types"
 	"github.com/spf13/cobra"
 )
 
@@ -21,18 +24,15 @@ var feesCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Get the tendermint endpoint and block height
 		endpoint := args[0]
-		block_height, err := strconv.Atoi(args[1])
-		_ = block_height
-		if err != nil {
-			return fmt.Errorf("could not parse block height")
-		}
+		block_height := args[1]
 
 		// Ensure there is a trailing slash for the endpoint
 		if endpoint[len(endpoint)-1] != '/' {
 			endpoint = endpoint + "/"
 		}
 
-		query_endpoint := fmt.Sprintf("%s%s%v", endpoint, "block?height=", block_height)
+		block_height = "tx.height=" + block_height
+		query_endpoint := fmt.Sprintf("%s%s\"%v\"", endpoint, "tx_search?query=", url.QueryEscape(block_height))
 
 		resp, err := http.Get(query_endpoint)
 		if err != nil {
@@ -52,7 +52,35 @@ var feesCmd = &cobra.Command{
 			n, err = resp.Body.Read(tmp)
 			resp_body_bytes = append(resp_body_bytes, tmp...)
 		}
-		fmt.Printf("%v\n", string(resp_body_bytes))
+
+		// truncate trailing empty bytes
+		resp_body_bytes = resp_body_bytes[:len(resp_body_bytes)-(100-n)]
+
+		// Received the response as bytes (Array of transactions)
+		// Now, extract the gas used
+		var result types.FeesResponse
+		if err := json.Unmarshal(resp_body_bytes, &result); err != nil {
+			return err
+		}
+
+		// Take the average "gas used" for transactions in this block
+		// TODO: determine if this is reasonable for determining gas prices
+
+		total_gas := 0
+		avg_gas := 0
+		len := 0
+
+		for _, tx := range result.Result.Txs {
+			val, _ := strconv.Atoi(tx.TxResult.GasUsed)
+			total_gas += val
+			len++
+		}
+
+		if len > 0 {
+			avg_gas = total_gas / len
+		}
+
+		fmt.Printf("Total Gas Used: %v\nAverage Gas Used: %v\nNumber of Txs: %v\n", total_gas, avg_gas, len)
 
 		return nil
 	},
@@ -60,16 +88,4 @@ var feesCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(feesCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// feesCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// feesCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
-	// feesCmd.Flags().String("endpoint", "http://0.0.0.0:26657", "Tendermint endpoint for the chain")
 }
